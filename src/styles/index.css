@@ -1,0 +1,90 @@
+@import 'tailwindcss';
+
+/* Theme is driven by data-theme on <html> (set before paint in index.html). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  color-scheme: light;
+  --canvas: oklch(0.975 0.004 250);
+  --surface: oklch(1 0 0);
+  --surface-sunken: oklch(0.955 0.006 250);
+  --border: oklch(0.9 0.008 250);
+  --border-strong: oklch(0.82 0.01 250);
+  --text: oklch(0.25 0.02 255);
+  --text-muted: oklch(0.5 0.02 255);
+  --accent: oklch(0.55 0.13 235);
+  --accent-hover: oklch(0.49 0.13 235);
+  --accent-fg: oklch(1 0 0);
+  --accent-soft: oklch(0.94 0.035 235);
+  --danger: oklch(0.56 0.19 25);
+  --danger-soft: oklch(0.95 0.03 25);
+  --success: oklch(0.58 0.13 155);
+  --warning: oklch(0.72 0.14 75);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: oklch(0.19 0.012 255);
+  --surface: oklch(0.235 0.014 255);
+  --surface-sunken: oklch(0.21 0.012 255);
+  --border: oklch(0.32 0.015 255);
+  --border-strong: oklch(0.4 0.016 255);
+  --text: oklch(0.93 0.008 255);
+  --text-muted: oklch(0.7 0.015 255);
+  --accent: oklch(0.7 0.12 235);
+  --accent-hover: oklch(0.76 0.11 235);
+  --accent-fg: oklch(0.18 0.02 255);
+  --accent-soft: oklch(0.3 0.05 235);
+  --danger: oklch(0.7 0.16 25);
+  --danger-soft: oklch(0.3 0.06 25);
+  --success: oklch(0.72 0.13 155);
+  --warning: oklch(0.8 0.13 75);
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-fg-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-fg antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
