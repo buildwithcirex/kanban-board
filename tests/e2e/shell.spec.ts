@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test'
 
+// These run against a production preview build, where the dev user switcher does not exist.
+// The app is therefore signed out: what is checked here is the public shell and the auth gate.
+// End-to-end flows behind a session arrive with the full suite in Phase 10.
+
 test('app shell loads and navigates between sections', async ({ page, isMobile }) => {
   await page.goto('/')
   await expect(page).toHaveTitle('Boards · Kanban')
@@ -9,10 +13,7 @@ test('app shell loads and navigates between sections', async ({ page, isMobile }
 
   await nav.getByRole('link', { name: 'My Tasks' }).click()
   await expect(page).toHaveURL(/\/my-tasks$/)
-  await expect(page.getByText('Nothing assigned to you')).toBeVisible()
-
-  await nav.getByRole('link', { name: 'Settings' }).click()
-  await expect(page.getByRole('heading', { name: 'Appearance' })).toBeVisible()
+  await expect(page).toHaveTitle('My Tasks · Kanban')
 
   // Mobile uses the bottom tab bar; desktop uses the sidebar.
   const box = await nav.boundingBox()
@@ -21,15 +22,25 @@ test('app shell loads and navigates between sections', async ({ page, isMobile }
   else expect(box!.x).toBe(0)
 })
 
-test('theme choice persists across reloads', async ({ page }) => {
-  await page.goto('/settings')
-  await page.getByText('Dark', { exact: true }).click()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await page.reload()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+test('private pages are behind the sign-in gate', async ({ page }) => {
+  await page.goto('/my-tasks')
+  await expect(page.getByText('Sign in to continue')).toBeVisible()
+  await expect(page.getByText('Nothing assigned to you')).toBeHidden()
 })
 
-test('unknown routes show the not-found page', async ({ page }) => {
+test('theme choice persists across reloads', async ({ page }) => {
+  await page.goto('/')
+  const initial = await page.locator('html').getAttribute('data-theme')
+  const expected = initial === 'dark' ? 'light' : 'dark'
+
+  await page.getByRole('button', { name: `Switch to ${expected} theme` }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', expected)
+
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', expected)
+})
+
+test('unknown routes show the not-found page without a session', async ({ page }) => {
   await page.goto('/nope')
   await expect(page.getByText('Page not found')).toBeVisible()
 })

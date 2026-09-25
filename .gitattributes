@@ -1,0 +1,12 @@
+# Keep line endings LF in the repository and in the working tree on every platform.
+# Prettier writes LF, so without this `npm run format:check` fails on a Windows checkout.
+* text=auto eol=lf
+
+# Binary assets git must not touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary

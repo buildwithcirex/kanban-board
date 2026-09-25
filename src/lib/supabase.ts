@@ -1,13 +1,38 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database.types'
 import { env } from './env'
+
+export type Client = SupabaseClient<Database>
 
 /**
  * Null when .env.local is missing or invalid. The shell shows a configuration
  * banner in that case instead of crashing.
+ *
+ * Only the anon key is ever used here. Every read and write is gated by Row Level Security in
+ * Postgres, so the key alone grants nothing until a user signs in.
  */
-export const supabase: SupabaseClient | null = env.ok
-  ? createClient(env.value.supabaseUrl, env.value.supabaseAnonKey)
+export const supabase: Client | null = env.ok
+  ? createClient<Database>(env.value.supabaseUrl, env.value.supabaseAnonKey, {
+      auth: {
+        // PKCE keeps the auth code exchange safe on a public client.
+        flowType: 'pkce',
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'kb-auth',
+      },
+      global: { headers: { 'x-client-info': 'kanban-web' } },
+      realtime: { params: { eventsPerSecond: 10 } },
+    })
   : null
+
+/** Narrowed accessor for code paths that cannot run without configuration. */
+export function requireSupabase(): Client {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
+  }
+  return supabase
+}
 
 export type HealthStatus = { reachable: true } | { reachable: false; reason: string }
 

@@ -1,21 +1,31 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { NavLink, Outlet, useMatches } from 'react-router'
-import { Moon, Sun, TriangleAlert } from 'lucide-react'
+import { LogIn, Moon, Sun, TriangleAlert } from 'lucide-react'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
+import { Spinner } from '@/components/ui/Spinner'
+import { useAuth } from '@/features/auth/useAuth'
+import { TeamNav } from '@/features/teams/TeamNav'
 import { cn } from '@/lib/cn'
 import { env } from '@/lib/env'
 import { resolveTheme, setThemePreference, useThemePreference } from '@/lib/theme'
-import { isRouteHandle, primaryNav } from './nav'
+import { isRouteHandle, primaryNav, type RouteHandle } from './nav'
 
 const APP_NAME = 'Kanban'
 
-function usePageTitle(): string {
+// Vite replaces import.meta.env.DEV with `false` for production builds, so the switcher and the
+// seeded test accounts are tree-shaken out of the shipped bundle entirely.
+const DevUserSwitcher = import.meta.env.DEV
+  ? lazy(() => import('@/features/dev-user-switcher/DevUserSwitcher'))
+  : null
+
+function useRouteHandle(): RouteHandle | null {
   const matches = useMatches()
   for (let i = matches.length - 1; i >= 0; i--) {
     const handle = matches[i]?.handle
-    if (isRouteHandle(handle)) return handle.title
+    if (isRouteHandle(handle)) return handle
   }
-  return APP_NAME
+  return null
 }
 
 function Logo() {
@@ -56,8 +66,56 @@ function ConfigBanner() {
   )
 }
 
+/**
+ * Nothing behind the shell renders until there is a session, so no feature has to cope with a
+ * missing user. Until Phase 11 ships the login screens, signing in is the dev switcher's job.
+ */
+function AuthGate({ isPublic, children }: { isPublic: boolean; children: ReactNode }) {
+  const { status } = useAuth()
+
+  if (isPublic) return children
+
+  if (status === 'loading') {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <Spinner label="Restoring your session" className="size-6 text-fg-muted" />
+      </div>
+    )
+  }
+
+  if (status === 'unconfigured') {
+    return (
+      <EmptyState
+        icon={<TriangleAlert />}
+        title="Backend not configured"
+        description="Add your Supabase URL and anon key to .env.local, then restart the dev server."
+      />
+    )
+  }
+
+  if (status === 'signed-out') {
+    return (
+      <div className="flex flex-col items-center gap-4 px-4 py-12">
+        <EmptyState
+          icon={<LogIn />}
+          title="Sign in to continue"
+          description="Boards, cards and notifications are private to your team."
+        />
+        {DevUserSwitcher && (
+          <Suspense fallback={<Spinner label="Loading test users" />}>
+            <DevUserSwitcher variant="panel" />
+          </Suspense>
+        )}
+      </div>
+    )
+  }
+
+  return children
+}
+
 export function AppShell() {
-  const title = usePageTitle()
+  const handle = useRouteHandle()
+  const title = handle?.title ?? APP_NAME
 
   useEffect(() => {
     document.title = title === APP_NAME ? APP_NAME : `${title} · ${APP_NAME}`
@@ -96,15 +154,7 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <section aria-labelledby="teams-heading" className="mt-6 px-2">
-          <h2
-            id="teams-heading"
-            className="px-3 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase"
-          >
-            Teams
-          </h2>
-          <p className="px-3 py-1 text-sm text-fg-muted">No teams yet</p>
-        </section>
+        <TeamNav />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -115,13 +165,22 @@ export function AppShell() {
             </span>
             <h1 className="truncate text-base font-semibold max-md:sr-only">{title}</h1>
           </div>
-          <ThemeToggle />
+          <div className="flex shrink-0 items-center gap-2">
+            {DevUserSwitcher && (
+              <Suspense fallback={null}>
+                <DevUserSwitcher />
+              </Suspense>
+            )}
+            <ThemeToggle />
+          </div>
         </header>
 
         <ConfigBanner />
 
-        <main id="main" tabIndex={-1} className="flex-1 overflow-auto pb-16 md:pb-0">
-          <Outlet />
+        <main id="main" tabIndex={-1} className="flex flex-1 flex-col overflow-auto pb-16 md:pb-0">
+          <AuthGate isPublic={handle?.public === true}>
+            <Outlet />
+          </AuthGate>
         </main>
 
         <nav

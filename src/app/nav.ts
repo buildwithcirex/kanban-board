@@ -15,6 +15,8 @@ export const primaryNav: NavItem[] = [
 
 export type RouteHandle = {
   title: string
+  /** Renders without a session. Only for pages that reveal nothing private (e.g. 404). */
+  public?: boolean
 }
 
 export function isRouteHandle(value: unknown): value is RouteHandle {
