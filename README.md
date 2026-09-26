@@ -2,8 +2,9 @@
 
 Team Kanban board (Trello-style) with assignments, a ReactFlow board canvas, PWA install and Android push notifications. Backend: Supabase.
 
-Working today: teams (create, switch, roles, add/remove members) on top of a fully locked-down
-Postgres schema. Boards and the card canvas are next.
+Working today: teams (create, switch, roles, add/remove members) and boards (create, private
+boards, backgrounds, lists, archive/restore) on top of a fully locked-down Postgres schema. The
+drag-and-drop card canvas is next.
 
 [context.md](context.md) is the current state of the project — read it first.
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) has the architecture and the phases.
@@ -94,7 +95,9 @@ tests/rls/        Row Level Security suite (network, dev project)
   data and UI-safe errors.
 - Each feature keeps its queries and mutations in one `use*.ts` hook file; that file also decides
   what to invalidate.
-- Anything that writes more than one row is a Postgres function (`create_team`, `add_team_member`,
-  …), not several round trips.
+- Anything that writes more than one row is a Postgres function (`create_team`, `create_board`,
+  `add_team_member`, …), not several round trips.
+- Boards, lists and cards are ordered by fractional-index strings, so moving one item rewrites one
+  row. Sorting uses `lib/ordering.ts`, which matches Postgres' `collate "C"` byte order.
 - Permissions are enforced by Row Level Security, never by hiding buttons. The UI hides what the
   server would refuse, and `npm run test:rls` proves the server refuses it.

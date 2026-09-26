@@ -920,6 +920,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      board_id_from_storage_name: { Args: { p_name: string }; Returns: string }
       can_access_board: { Args: { p_board_id: string }; Returns: boolean }
       can_access_card: { Args: { p_card_id: string }; Returns: boolean }
       can_access_checklist: {
@@ -933,6 +934,34 @@ export type Database = {
       can_edit_board: { Args: { p_board_id: string }; Returns: boolean }
       can_edit_card: { Args: { p_card_id: string }; Returns: boolean }
       can_edit_checklist: { Args: { p_checklist_id: string }; Returns: boolean }
+      create_board: {
+        Args: {
+          p_background?: string
+          p_position: string
+          p_team_id: string
+          p_title: string
+          p_visibility?: Database["public"]["Enums"]["board_visibility"]
+          p_with_default_lists?: boolean
+        }
+        Returns: {
+          archived: boolean
+          background: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          position: string
+          team_id: string
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["board_visibility"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "boards"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_team: {
         Args: { p_color?: string; p_description?: string; p_name: string }
         Returns: {
@@ -952,6 +981,7 @@ export type Database = {
         }
       }
       default_profile_color: { Args: { p_id: string }; Returns: unknown }
+      is_board_member: { Args: { p_board_id: string }; Returns: boolean }
       is_board_team_admin: { Args: { p_board_id: string }; Returns: boolean }
       is_board_team_member: {
         Args: { p_board_id: string; p_user_id: string }
@@ -963,6 +993,30 @@ export type Database = {
       remove_team_member: {
         Args: { p_team_id: string; p_user_id: string }
         Returns: undefined
+      }
+      set_board_visibility: {
+        Args: {
+          p_board_id: string
+          p_visibility: Database["public"]["Enums"]["board_visibility"]
+        }
+        Returns: {
+          archived: boolean
+          background: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          position: string
+          team_id: string
+          title: string
+          updated_at: string
+          visibility: Database["public"]["Enums"]["board_visibility"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "boards"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       set_team_member_role: {
         Args: {

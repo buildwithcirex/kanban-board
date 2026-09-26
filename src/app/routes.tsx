@@ -5,6 +5,7 @@ import { NotificationsPage } from '@/features/notifications/NotificationsPage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
 import { TeamPage } from '@/features/teams/TeamPage'
 import { TeamsPage } from '@/features/teams/TeamsPage'
+import { BoardPage } from '@/features/boards/BoardPage'
 import { AppShell } from './AppShell'
 import type { RouteHandle } from './nav'
 import { NotFoundPage } from './NotFoundPage'
@@ -27,6 +28,7 @@ export const routes: RouteObject[] = [
       { path: 'settings', element: <SettingsPage />, handle: handle('Settings') },
       { path: 'teams', element: <TeamsPage />, handle: handle('Teams') },
       { path: 't/:teamId', element: <TeamPage />, handle: handle('Team') },
+      { path: 't/:teamId/b/:boardId', element: <BoardPage />, handle: handle('Board') },
       { path: '*', element: <NotFoundPage />, handle: handle('Not found', { public: true }) },
     ],
   },
