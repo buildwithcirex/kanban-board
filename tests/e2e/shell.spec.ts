@@ -28,6 +28,12 @@ test('private pages are behind the sign-in gate', async ({ page }) => {
   await expect(page.getByText('Nothing assigned to you')).toBeHidden()
 })
 
+test('a team page is not reachable without a session', async ({ page }) => {
+  await page.goto('/t/00000000-0000-4000-8000-000000000000')
+  await expect(page.getByText('Sign in to continue')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Members' })).toBeHidden()
+})
+
 test('theme choice persists across reloads', async ({ page }) => {
   await page.goto('/')
   const initial = await page.locator('html').getAttribute('data-theme')

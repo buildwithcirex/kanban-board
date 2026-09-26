@@ -7,7 +7,8 @@ import { useAuth } from '@/features/auth/useAuth'
 import { cn } from '@/lib/cn'
 import { devEnv } from '@/lib/env'
 import { requireSupabase } from '@/lib/supabase'
-import { devUsers, initials, type DevUser } from './devUsers'
+import { initials } from '@/lib/initials'
+import { devUsers, type DevUser } from './devUsers'
 
 /**
  * Development-only sign-in (plan §1.3, option A).

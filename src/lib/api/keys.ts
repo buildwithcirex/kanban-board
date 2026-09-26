@@ -6,6 +6,7 @@ export const queryKeys = {
   session: ['session'] as const,
   profile: (userId: string) => ['profile', userId] as const,
   myTeams: (userId: string) => ['teams', 'mine', userId] as const,
+  team: (teamId: string) => ['teams', teamId] as const,
   teamMembers: (teamId: string) => ['teams', teamId, 'members'] as const,
   supabaseHealth: ['supabase-health'] as const,
 } as const
