@@ -7,7 +7,7 @@ happens, so a fresh session does not have to reverse-engineer the repo.
   reference: where behaviour is unspecified, do what Trello does.
 - **The plan:** [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — architecture, domain
   model and the 12 phases. It is the contract for technology choices; do not deviate from it.
-- **Last updated:** 2026-09-26 — Phase 2 done and verified against the live dev project.
+- **Last updated:** 2026-09-26 — Phase 3 done and verified against the live dev project.
 
 ---
 
@@ -18,8 +18,8 @@ happens, so a fresh session does not have to reverse-engineer the repo.
 | 0 — Foundation                      | ✅ done                                                            |
 | 1 — Schema, RLS & dev users         | ✅ done — migrations pushed, seeded, sign-in and RLS verified live |
 | 2 — Teams & members                 | ✅ done — create, switch, roles, add/remove, verified live         |
-| 3 — Boards & lists                  | ⬜ next                                                            |
-| 4 — ReactFlow Kanban                | ⬜                                                                 |
+| 3 — Boards & lists                  | ✅ done — boards, private boards, backgrounds, lists, archiving    |
+| 4 — ReactFlow Kanban                | ⬜ next                                                            |
 | 5 — Card detail                     | ⬜                                                                 |
 | 6 — My Tasks & team views           | ⬜                                                                 |
 | 7 — Realtime & in-app notifications | ⬜                                                                 |
@@ -31,7 +31,7 @@ happens, so a fresh session does not have to reverse-engineer the repo.
 ### Database state
 
 The dev project is **linked, migrated and seeded**. Sign-in works and `npm run test:rls` passes
-(43 tests) against it. `src/types/database.types.ts` is generated from the live schema.
+(68 tests) against it. `src/types/database.types.ts` is generated from the live schema.
 
 Useful commands (the CLI is logged in and linked):
 
@@ -114,6 +114,21 @@ Design decisions worth knowing:
   maps those to sentences. ⚠️ Use `PT404`, not `P0002`: PostgREST has no mapping for
   `no_data_found` and answers **500**, so a mistyped email would look like a server fault.
   `PT<status>` is PostgREST's "respond with this HTTP status" convention.
+- **A policy should test the row it already has, not re-read the table.** `boards_select` used to
+  call `can_access_board(id)`, which reads `boards` — so it could not see the row an
+  `insert ... returning` was creating, and refused it with 42501. It now tests `team_id` and
+  `visibility` directly, plus `is_board_member(id)` for private boards, which is both faster and
+  free of that trap.
+- **Three writes need an RPC because RETURNING re-checks the SELECT policy** against a row whose
+  supporting rows do not exist yet: `create_team` (owner membership), `create_board` (private
+  board membership + default lists) and `set_board_visibility` (membership when turning private).
+  A `STABLE` policy helper cannot see rows written by the same statement, which is the whole
+  reason. `handle_board_visibility_change` is an AFTER trigger that catches a direct
+  `update ... set visibility` done without the RPC, so a board can never become invisible to
+  everyone.
+- **Board backgrounds live in a private bucket.** Objects are named `<board_id>/<random>.<ext>`
+  and the policies read the first path segment, so authorisation is the board's. There is no
+  public URL; the client asks for a signed one, refreshed every 45 minutes.
 - **`create_team` must be used instead of inserting into `teams`.** A plain
   `insert ... select()` fails: RETURNING re-checks the SELECT policy, and the owner membership
   that makes the team visible does not exist yet at that instant. The RPC does both writes in one
@@ -132,6 +147,15 @@ Design decisions worth knowing:
 Open decision #2 from the plan was settled as: **any signed-in user can create a team; any team
 member can create a board; only owners/admins can delete one.** Change it in
 `…090200_rls_policies.sql` if that turns out wrong.
+
+Boards add: any team member can create one, only owners/admins can delete one, and an archived
+board is read-only (enforced by `can_edit_board`, not by the UI). A **private** board is visible
+only to its `board_members`, admins included.
+
+⚠️ Known edge: a team admin cannot delete a private board they are not on — Postgres applies the
+SELECT policy to a DELETE that filters on a column, so the row is not there for them. If everyone
+on a private board leaves the team, it becomes invisible and only goes away with the team. Pinned
+by a test in `tests/rls/boards.test.ts`; revisit if it bites.
 
 The owner's row is immutable: their role cannot be changed (not even by themselves), and they
 cannot be removed or leave — deleting the team is the way out. **There is deliberately no
@@ -152,11 +176,16 @@ src/
     teams/              TeamsPage (overview), TeamPage (/t/:teamId), TeamMembers,
                         TeamNav (sidebar switcher), CreateTeamDialog, TeamSettingsDialog,
                         ColorPicker, teamSchema (zod), useTeams (queries + mutations)
-    boards|my-tasks|notifications|settings/  placeholder pages
+    boards/             BoardsPage (all boards), BoardPage (/t/:teamId/b/:boardId),
+                        TeamBoards (section on a team page), BoardTile, ListColumn +
+                        AddListForm, CreateBoardDialog, BoardSettingsDialog,
+                        BackgroundSwatches, boardSchema, useBoards, useLists
+    my-tasks|notifications|settings/  placeholder pages
   lib/
     api/        errors.ts (UI-safe error mapping), keys.ts (query keys), teams.ts, profiles.ts
     env.ts      zod-validated env; also parses the DEV-only password
     initials.ts avatar fallback letters
+    ordering.ts fractional-index positions (see below)
     supabase.ts typed client (PKCE, auto-refresh)
     theme.ts    light/dark, applied before first paint
   types/database.types.ts   generated — regenerate with npm run db:types, never hand-edit
@@ -185,6 +214,12 @@ src/
   accessible name stays full.
 - **Touch targets** are lifted to 44px with Tailwind's `pointer-coarse:` variant in the shared
   primitives, rather than by making everything big on desktop.
+- **Ordering is fractional-index strings** (`lib/ordering.ts`, wrapping `fractional-indexing`), so
+  a move rewrites one row. ⚠️ Sort with `comparePositions`, never `localeCompare`: the columns are
+  `collate "C"` (byte order) and the two disagree on mixed case. `sortByPosition` breaks ties on
+  id so concurrent inserts still land in one stable order.
+- **Backgrounds are one text column** with a prefix: `color:#rrggbb` or `image:<path>`. Parsing
+  lives in `lib/api/boards.ts`; anything unrecognised renders as the default surface.
 - **The dev switcher cannot ship.** It is behind `import.meta.env.DEV` and loaded with `lazy()`,
   and `src/lib/env.ts` reads env vars one at a time rather than passing `import.meta.env` as an
   object (which would inline every `VITE_*` value into the production bundle). Verified: a
@@ -204,17 +239,23 @@ src/
   escalate, an admin cannot touch the owner, identity fields cannot be forged.
 - `tests/rls/team-members.test.ts` — the Phase 2 RPCs, asserted on real error codes. Because they
   are `security definer`, network tests are the only proof the checks exist.
-  ⚠️ Both files share the seeded fixture, so **anything a test changes it must put back**: Product
-  must end as ada (owner), grace (admin), linus (member). `team-members.test.ts` does this in
-  `afterEach`; running the suite twice in a row is the check that it works.
+- `tests/rls/boards.test.ts` — boards, private boards, archiving, lists and the storage bucket,
+  including a real upload and a fetch of the public URL to prove the bucket is not public.
+  ⚠️ All three files share the seeded fixture, so **anything a test changes it must put back**:
+  Product must end as ada (owner), grace (admin), linus (member), with "Roadmap" the only board.
+  Cleanup happens in `afterEach`; running the suite twice in a row is the check that it works.
+  Deleting a scratch board needs both halves of the rule — only an admin may delete, and only
+  someone who can see the board may target it — so `boards.test.ts` tries the creator then an
+  admin.
 - Component tests mock `@/lib/api/*` and render the real router through `src/test/renderApp.tsx`,
   which stubs the auth state. They assert the interface does not offer an action the server would
   refuse, nor hide one it would allow.
 - The RLS suites skip themselves when the env vars are absent.
 
 Migrations are also executed in an in-process Postgres (PGlite) in the scratchpad before being
-pushed — 45 policy assertions for Phase 1, 31 for Phase 2. That is how the `create_team`
-RETURNING bug was found. The harness is **not** in the repo; it could be added as a no-network RLS
+pushed — 45 policy assertions for Phase 1, 31 for Phase 2, 45 for Phase 3. That is how the
+`create_team` and `set_board_visibility` RETURNING bugs were both found before they reached the
+database. The harness is **not** in the repo; it could be added as a no-network RLS
 test if wanted (costs a ~30 MB dev dependency).
 
 ---
@@ -230,26 +271,33 @@ test if wanted (costs a ~30 MB dev dependency).
 
 ---
 
-## Next: Phase 3 — Boards & lists
+## Next: Phase 4 — ReactFlow Kanban
 
-Scope from the plan: team boards page, create/rename/archive boards, board backgrounds via
-Supabase Storage, private boards, and list create/rename/archive. Done when boards are scoped by
-team and archive/restore work.
+Scope from the plan: a proof of concept first, then list and card nodes, computed layout, drag
+with gap animation, the `move_card` RPC, list reorder, long-press on touch, a "Move…" menu,
+the card front, the **assigned-to-me highlight** and a "My cards only" switch. Done when order
+persists, drag works with mouse and touch, and a 300-card board stays smooth.
+
+⚠️ The plan flags this as the riskiest phase: **start with the proof of concept** for drag,
+animation and touch before building anything on top of it. The "Move…" menu is the fallback if
+ReactFlow turns out to be a poor fit for list-sorting, and it is needed for keyboard access
+regardless.
 
 Already in place for it:
 
-- Tables, indexes and policies for `boards`, `board_members`, `lists` (Phase 1). `can_edit_board`
-  already refuses writes on an archived board, so "archived is read-only" is enforced already.
-- `remove_team_member` already clears the person's `board_members` rows.
-- The page-title override, `ConfirmDialog`, `ColorPicker` and the `use*.ts` hook pattern.
+- `cards` and `card_assignees` tables, policies and indexes (Phase 1), including
+  `cards(list_id, position)` and `card_assignees(user_id)`.
+- `can_assign_to_card` already refuses anyone outside the board's team.
+- `lib/ordering.ts` — `positionAtIndex` is written for exactly this: pass the list _without_ the
+  card being moved and the index it should land at.
+- `ListColumn` renders a placeholder where cards go, and the board already scrolls and snaps.
 
 Still needed:
 
-- `src/lib/api/boards.ts` + `useBoards.ts`, and the `/t/:teamId` page listing the team's boards.
-- A create-board path. **Check first whether `insert ... select()` can read the new row back**:
-  unlike `teams` it should work, because `can_access_board` is true the instant the row exists for
-  a `team` board — but a `private` board needs its `board_members` row first, which is the same
-  trap `create_team` hit. If so, that is a `create_board` RPC.
-- Archive/restore UI, and Storage for backgrounds (private bucket + policies keyed on
-  `can_access_board`).
-- A decision on ownership transfer (see the permission model above) — still open.
+- `@xyflow/react` is not installed yet.
+- `src/lib/api/cards.ts` + `useCards.ts`, and a `move_card` RPC (card + activity + notification
+  in one transaction — and check the RETURNING trap again: a card's SELECT policy reads the
+  _board_, which exists, so a plain insert should be fine).
+- The assigned-to-me highlight needs the signed-in user id, which `useAuth` already provides.
+- Remember the RLS-is-not-a-row-filter rule: `card_assignees` will return every assignee of a
+  visible card, so "my cards" must filter on `user_id` in the query.

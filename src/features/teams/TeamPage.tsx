@@ -10,6 +10,7 @@ import { useSetPageTitle } from '@/app/pageTitle'
 import { useAuth } from '@/features/auth/useAuth'
 import { errorMessage } from '@/lib/api/errors'
 import type { TeamRole } from '@/lib/api/teams'
+import { TeamBoards } from '@/features/boards/TeamBoards'
 import { TeamMembers } from './TeamMembers'
 import { TeamSettingsDialog } from './TeamSettingsDialog'
 import { useDeleteTeam, useMyRole, useTeam } from './useTeams'
@@ -97,6 +98,8 @@ export function TeamPage() {
         />
         <span>{myRole ? rolePhrase[myRole] : 'You are not a member of this team'}</span>
       </div>
+
+      <TeamBoards teamId={team.data.id} canCreate={myRole !== null} />
 
       <TeamMembers
         teamId={team.data.id}
