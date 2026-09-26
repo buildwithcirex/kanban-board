@@ -15,12 +15,3 @@ export const devUsers: DevUser[] = [
   { email: 'linus@kanban.test', name: 'Linus Torvalds', hint: 'Member · Product' },
   { email: 'mallory@kanban.test', name: 'Mallory Quinn', hint: 'Outsider · no shared team' },
 ]
-
-export function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0] ?? '')
-    .join('')
-    .toUpperCase()
-}

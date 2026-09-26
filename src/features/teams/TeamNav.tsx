@@ -1,21 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { NavLink } from 'react-router'
+import { Plus } from 'lucide-react'
+import { IconButton } from '@/components/ui/IconButton'
 import { Spinner } from '@/components/ui/Spinner'
 import { useAuth } from '@/features/auth/useAuth'
-import { queryKeys } from '@/lib/api/keys'
-import { listMyTeams } from '@/lib/api/teams'
+import { cn } from '@/lib/cn'
+import { CreateTeamDialog } from './CreateTeamDialog'
+import { useMyTeams } from './useTeams'
 
 /**
- * The teams the signed-in user belongs to. The query is keyed by user id, so switching user in
- * development swaps the list rather than showing the previous user's cached teams.
+ * The team switcher: the teams you belong to, each linking to its page. The query is keyed by
+ * user id, so switching user in development swaps the list rather than showing the previous
+ * user's cached teams.
  */
 export function TeamNav() {
-  const { status, user } = useAuth()
-  const userId = user?.id
-  const teams = useQuery({
-    queryKey: queryKeys.myTeams(userId ?? ''),
-    queryFn: ({ signal }) => listMyTeams(userId!, signal),
-    enabled: status === 'signed-in' && Boolean(userId),
-  })
+  const { status } = useAuth()
+  const teams = useMyTeams()
+  const [createOpen, setCreateOpen] = useState(false)
 
   let body
   if (status !== 'signed-in') {
@@ -38,17 +39,26 @@ export function TeamNav() {
     body = (
       <ul className="flex flex-col gap-0.5">
         {teams.data.map(({ team, role }) => (
-          <li
-            key={team.id}
-            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-fg"
-          >
-            <span
-              aria-hidden
-              className="size-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: team.color }}
-            />
-            <span className="min-w-0 flex-1 truncate">{team.name}</span>
-            <span className="text-xs text-fg-muted capitalize">{role}</span>
+          <li key={team.id}>
+            <NavLink
+              to={`/t/${team.id}`}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors',
+                  isActive
+                    ? 'bg-accent-soft text-accent'
+                    : 'text-fg hover:bg-surface-sunken hover:text-fg',
+                )
+              }
+            >
+              <span
+                aria-hidden
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: team.color }}
+              />
+              <span className="min-w-0 flex-1 truncate">{team.name}</span>
+              <span className="text-xs text-fg-muted capitalize">{role}</span>
+            </NavLink>
           </li>
         ))}
       </ul>
@@ -57,13 +67,24 @@ export function TeamNav() {
 
   return (
     <section aria-labelledby="teams-heading" className="mt-6 px-2">
-      <h2
-        id="teams-heading"
-        className="px-3 pb-1 text-xs font-semibold tracking-wide text-fg-muted uppercase"
-      >
-        Teams
-      </h2>
+      <div className="flex items-center justify-between pr-1 pl-3">
+        <h2
+          id="teams-heading"
+          className="text-xs font-semibold tracking-wide text-fg-muted uppercase"
+        >
+          Your teams
+        </h2>
+        {status === 'signed-in' && (
+          <IconButton
+            size="sm"
+            label="New team"
+            icon={<Plus className="size-4" />}
+            onClick={() => setCreateOpen(true)}
+          />
+        )}
+      </div>
       {body}
+      <CreateTeamDialog open={createOpen} onClose={() => setCreateOpen(false)} />
     </section>
   )
 }

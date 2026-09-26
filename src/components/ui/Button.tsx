@@ -12,9 +12,11 @@ const variantClasses: Record<ButtonVariant, string> = {
   danger: 'bg-danger text-white hover:opacity-90',
 }
 
+// `pointer-coarse` lifts every control to the 44px touch target the plan asks for, without
+// making the desktop UI chunky.
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 gap-1.5 px-2.5 text-sm',
-  md: 'h-10 gap-2 px-3.5 text-sm',
+  sm: 'h-8 gap-1.5 px-2.5 text-sm pointer-coarse:h-11',
+  md: 'h-10 gap-2 px-3.5 text-sm pointer-coarse:h-11',
 }
 
 export const buttonBase =

@@ -1,15 +1,18 @@
-import { Bell, ListTodo, Settings, SquareKanban, type LucideIcon } from 'lucide-react'
+import { Bell, ListTodo, Settings, SquareKanban, Users, type LucideIcon } from 'lucide-react'
 
 export type NavItem = {
   to: string
   label: string
+  /** Shown instead of `label` in the mobile tab bar, where five items leave ~72px each. */
+  shortLabel?: string
   icon: LucideIcon
 }
 
 export const primaryNav: NavItem[] = [
   { to: '/', label: 'Boards', icon: SquareKanban },
-  { to: '/my-tasks', label: 'My Tasks', icon: ListTodo },
-  { to: '/notifications', label: 'Notifications', icon: Bell },
+  { to: '/teams', label: 'Teams', icon: Users },
+  { to: '/my-tasks', label: 'My Tasks', shortLabel: 'Tasks', icon: ListTodo },
+  { to: '/notifications', label: 'Notifications', shortLabel: 'Inbox', icon: Bell },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

@@ -900,6 +900,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_team_member: {
+        Args: {
+          p_email: string
+          p_role?: Database["public"]["Enums"]["team_role"]
+          p_team_id: string
+        }
+        Returns: {
+          created_at: string
+          role: Database["public"]["Enums"]["team_role"]
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "team_members"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       can_access_board: { Args: { p_board_id: string }; Returns: boolean }
       can_access_card: { Args: { p_card_id: string }; Returns: boolean }
       can_access_checklist: {
@@ -940,6 +960,30 @@ export type Database = {
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
       is_team_owner: { Args: { p_team_id: string }; Returns: boolean }
+      remove_team_member: {
+        Args: { p_team_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      set_team_member_role: {
+        Args: {
+          p_role: Database["public"]["Enums"]["team_role"]
+          p_team_id: string
+          p_user_id: string
+        }
+        Returns: {
+          created_at: string
+          role: Database["public"]["Enums"]["team_role"]
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "team_members"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       shares_team_with: { Args: { p_user_id: string }; Returns: boolean }
       team_role: {
         Args: { p_team_id: string }

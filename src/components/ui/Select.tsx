@@ -1,40 +1,52 @@
 import { useId, type ComponentProps } from 'react'
 import { cn } from '@/lib/cn'
 
-type InputProps = ComponentProps<'input'> & {
+type SelectProps = ComponentProps<'select'> & {
   label: string
   hint?: string
   error?: string
   hideLabel?: boolean
 }
 
-export function Input({ label, hint, error, hideLabel, id, className, ...props }: InputProps) {
+export function Select({
+  label,
+  hint,
+  error,
+  hideLabel,
+  id,
+  className,
+  children,
+  ...props
+}: SelectProps) {
   const generatedId = useId()
-  const inputId = id ?? generatedId
-  const hintId = hint ? `${inputId}-hint` : undefined
-  const errorId = error ? `${inputId}-error` : undefined
+  const selectId = id ?? generatedId
+  const hintId = hint ? `${selectId}-hint` : undefined
+  const errorId = error ? `${selectId}-error` : undefined
   const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined
 
   return (
     <div className="flex flex-col gap-1.5">
       <label
-        htmlFor={inputId}
+        htmlFor={selectId}
         className={cn('text-sm font-medium text-fg', hideLabel && 'sr-only')}
       >
         {label}
       </label>
-      <input
-        id={inputId}
+      <select
+        id={selectId}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         className={cn(
-          'h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-fg placeholder:text-fg-muted pointer-coarse:h-11',
+          'h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-fg pointer-coarse:h-11',
           'focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none',
-          error && 'border-danger focus-visible:border-danger focus-visible:ring-danger/30',
+          'disabled:opacity-50',
+          error && 'border-danger',
           className,
         )}
         {...props}
-      />
+      >
+        {children}
+      </select>
       {hint && !error && (
         <p id={hintId} className="text-xs text-fg-muted">
           {hint}

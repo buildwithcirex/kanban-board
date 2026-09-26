@@ -1,36 +1,44 @@
 import { useId, type ComponentProps } from 'react'
 import { cn } from '@/lib/cn'
 
-type InputProps = ComponentProps<'input'> & {
+type TextareaProps = ComponentProps<'textarea'> & {
   label: string
   hint?: string
   error?: string
   hideLabel?: boolean
 }
 
-export function Input({ label, hint, error, hideLabel, id, className, ...props }: InputProps) {
+export function Textarea({
+  label,
+  hint,
+  error,
+  hideLabel,
+  id,
+  className,
+  ...props
+}: TextareaProps) {
   const generatedId = useId()
-  const inputId = id ?? generatedId
-  const hintId = hint ? `${inputId}-hint` : undefined
-  const errorId = error ? `${inputId}-error` : undefined
+  const textareaId = id ?? generatedId
+  const hintId = hint ? `${textareaId}-hint` : undefined
+  const errorId = error ? `${textareaId}-error` : undefined
   const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined
 
   return (
     <div className="flex flex-col gap-1.5">
       <label
-        htmlFor={inputId}
+        htmlFor={textareaId}
         className={cn('text-sm font-medium text-fg', hideLabel && 'sr-only')}
       >
         {label}
       </label>
-      <input
-        id={inputId}
+      <textarea
+        id={textareaId}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         className={cn(
-          'h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-fg placeholder:text-fg-muted pointer-coarse:h-11',
+          'min-h-20 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-fg placeholder:text-fg-muted',
           'focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none',
-          error && 'border-danger focus-visible:border-danger focus-visible:ring-danger/30',
+          error && 'border-danger',
           className,
         )}
         {...props}

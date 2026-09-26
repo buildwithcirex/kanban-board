@@ -25,7 +25,8 @@ export function IconButton({
       className={cn(
         buttonBase,
         'text-fg-muted hover:bg-surface-sunken hover:text-fg',
-        size === 'sm' ? 'size-8' : 'size-10',
+        // 44px hit area on touch devices; unchanged with a mouse.
+        size === 'sm' ? 'size-8 pointer-coarse:size-11' : 'size-10 pointer-coarse:size-11',
         className,
       )}
       {...props}

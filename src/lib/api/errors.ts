@@ -36,6 +36,10 @@ function kindFor(code: string | undefined): AppErrorKind {
     case 'PGRST301':
       return 'forbidden'
     case 'PGRST116':
+    // PT404 is the PostgREST convention for "raise this as HTTP 404"; P0002 is what the same
+    // RPCs used before that mapping was in place.
+    case 'PT404':
+    case 'P0002':
       return 'not-found'
     case '23505': // unique_violation
     case '40001': // serialization_failure
@@ -44,6 +48,7 @@ function kindFor(code: string | undefined): AppErrorKind {
     case '23503': // foreign_key_violation
     case '23514': // check_violation
     case '22001': // string_data_right_truncation
+    case '22023': // invalid_parameter_value — raised by our RPCs for a bad argument
       return 'invalid'
     default:
       return 'unknown'
@@ -64,6 +69,25 @@ export function toAppError(error: PostgrestError | Error | null | unknown): AppE
 
   const kind = kindFor(code)
   return new AppError(kind, messages[kind], code, error)
+}
+
+/**
+ * Re-labels an error with wording that fits the operation, without leaking database detail.
+ * `toAppError` only knows the shape of a failure ("conflict"); the caller knows what the user was
+ * trying to do ("they are already in this team").
+ */
+export function withMessages(
+  error: unknown,
+  overrides: Partial<Record<AppErrorKind, string>>,
+): AppError {
+  const mapped = toAppError(error)
+  const override = overrides[mapped.kind]
+  return override ? new AppError(mapped.kind, override, mapped.code, mapped.cause ?? error) : mapped
+}
+
+/** The sentence to show the user for any thrown value. */
+export function errorMessage(error: unknown): string {
+  return toAppError(error).message
 }
 
 /** Unwraps a PostgREST `{ data, error }` result, throwing a UI-safe error. */

@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, type ReactNode } from 'react'
-import { NavLink, Outlet, useMatches } from 'react-router'
+import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { NavLink, Outlet, useLocation, useMatches } from 'react-router'
 import { LogIn, Moon, Sun, TriangleAlert } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
@@ -10,6 +10,7 @@ import { cn } from '@/lib/cn'
 import { env } from '@/lib/env'
 import { resolveTheme, setThemePreference, useThemePreference } from '@/lib/theme'
 import { isRouteHandle, primaryNav, type RouteHandle } from './nav'
+import { PageTitleContext } from './pageTitle'
 
 const APP_NAME = 'Kanban'
 
@@ -115,7 +116,17 @@ function AuthGate({ isPublic, children }: { isPublic: boolean; children: ReactNo
 
 export function AppShell() {
   const handle = useRouteHandle()
-  const title = handle?.title ?? APP_NAME
+  const { pathname } = useLocation()
+  const [override, setOverride] = useState<{ path: string; title: string } | null>(null)
+
+  // Tying the override to the path it came from means a navigation drops it without an extra
+  // effect — the stale title simply stops matching.
+  const title = (override?.path === pathname ? override.title : null) ?? handle?.title ?? APP_NAME
+
+  const setPageTitle = useCallback(
+    (next: string | null) => setOverride(next ? { path: pathname, title: next } : null),
+    [pathname],
+  )
 
   useEffect(() => {
     document.title = title === APP_NAME ? APP_NAME : `${title} · ${APP_NAME}`
@@ -179,28 +190,31 @@ export function AppShell() {
 
         <main id="main" tabIndex={-1} className="flex flex-1 flex-col overflow-auto pb-16 md:pb-0">
           <AuthGate isPublic={handle?.public === true}>
-            <Outlet />
+            <PageTitleContext.Provider value={setPageTitle}>
+              <Outlet />
+            </PageTitleContext.Provider>
           </AuthGate>
         </main>
 
         <nav
           aria-label="Main"
-          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
         >
-          {primaryNav.map(({ to, label, icon: Icon }) => (
+          {primaryNav.map(({ to, label, shortLabel, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
+              aria-label={label}
               className={({ isActive }) =>
                 cn(
-                  'flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium',
+                  'flex h-16 flex-col items-center justify-center gap-1 px-1 text-xs font-medium',
                   isActive ? 'text-accent' : 'text-fg-muted',
                 )
               }
             >
               <Icon className="size-5" aria-hidden />
-              {label}
+              <span className="truncate">{shortLabel ?? label}</span>
             </NavLink>
           ))}
         </nav>

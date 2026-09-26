@@ -2,6 +2,9 @@
 
 Team Kanban board (Trello-style) with assignments, a ReactFlow board canvas, PWA install and Android push notifications. Backend: Supabase.
 
+Working today: teams (create, switch, roles, add/remove members) on top of a fully locked-down
+Postgres schema. Boards and the card canvas are next.
+
 [context.md](context.md) is the current state of the project — read it first.
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) has the architecture and the phases.
 
@@ -76,7 +79,7 @@ src/
   components/ui/  shared UI primitives (Button, Input, Dialog, ...)
   features/       one folder per product area
   lib/            env, Supabase client, api/* (typed data access), theme, utilities
-  types/          database.types.ts (regenerate with npm run db:types)
+  types/          database.types.ts (generated — npm run db:types, never hand-edited)
   styles/         Tailwind entry + design tokens (light/dark)
 supabase/
   migrations/     hand-written SQL: schema, RLS, triggers, RPCs
@@ -84,3 +87,14 @@ supabase/
 tests/e2e/        Playwright
 tests/rls/        Row Level Security suite (network, dev project)
 ```
+
+## How the layers fit
+
+- Components never call Supabase directly — always through `src/lib/api/*`, which returns typed
+  data and UI-safe errors.
+- Each feature keeps its queries and mutations in one `use*.ts` hook file; that file also decides
+  what to invalidate.
+- Anything that writes more than one row is a Postgres function (`create_team`, `add_team_member`,
+  …), not several round trips.
+- Permissions are enforced by Row Level Security, never by hiding buttons. The UI hides what the
+  server would refuse, and `npm run test:rls` proves the server refuses it.
