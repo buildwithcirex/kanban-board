@@ -33,4 +33,24 @@ export function parseEnv(raw: Record<string, unknown>): EnvResult {
   }
 }
 
-export const env = parseEnv(import.meta.env)
+// Variables are read one by one on purpose. Vite inlines a whole `import.meta.env` object when it
+// is referenced as a value, which would bake every VITE_* variable — including development-only
+// ones — into the production bundle.
+export const env = parseEnv({
+  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+  VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY,
+})
+
+/**
+ * Development-only configuration, read by the dev user switcher (plan §1.3) so it can sign in as
+ * a seeded test user. `import.meta.env.DEV` is replaced with `false` when building for
+ * production, so this branch — and the password literal inside it — is dropped by the bundler.
+ */
+export function parseDevEnv(raw: Record<string, unknown>): { userPassword: string | null } {
+  const value = raw['VITE_DEV_USER_PASSWORD']
+  return { userPassword: typeof value === 'string' && value.length > 0 ? value : null }
+}
+
+export const devEnv: { userPassword: string | null } = import.meta.env.DEV
+  ? parseDevEnv({ VITE_DEV_USER_PASSWORD: import.meta.env.VITE_DEV_USER_PASSWORD })
+  : { userPassword: null }

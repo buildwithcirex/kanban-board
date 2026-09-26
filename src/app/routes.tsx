@@ -8,7 +8,10 @@ import type { RouteHandle } from './nav'
 import { NotFoundPage } from './NotFoundPage'
 import { RouteErrorPage } from './RouteErrorPage'
 
-const handle = (title: string): RouteHandle => ({ title })
+const handle = (title: string, options?: { public?: boolean }): RouteHandle => ({
+  title,
+  ...options,
+})
 
 export const routes: RouteObject[] = [
   {
@@ -20,7 +23,7 @@ export const routes: RouteObject[] = [
       { path: 'my-tasks', element: <MyTasksPage />, handle: handle('My Tasks') },
       { path: 'notifications', element: <NotificationsPage />, handle: handle('Notifications') },
       { path: 'settings', element: <SettingsPage />, handle: handle('Settings') },
-      { path: '*', element: <NotFoundPage />, handle: handle('Not found') },
+      { path: '*', element: <NotFoundPage />, handle: handle('Not found', { public: true }) },
     ],
   },
 ]

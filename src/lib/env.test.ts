@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseEnv } from './env'
+import { parseDevEnv, parseEnv } from './env'
 
 describe('parseEnv', () => {
   it('accepts a valid config and strips trailing slashes from the URL', () => {
@@ -28,5 +28,16 @@ describe('parseEnv', () => {
       VITE_SUPABASE_ANON_KEY: 'x'.repeat(40),
     })
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('parseDevEnv', () => {
+  it('reads the dev password when present', () => {
+    expect(parseDevEnv({ VITE_DEV_USER_PASSWORD: 'secret' })).toEqual({ userPassword: 'secret' })
+  })
+
+  it('is null when unset or empty, so the switcher can explain why', () => {
+    expect(parseDevEnv({})).toEqual({ userPassword: null })
+    expect(parseDevEnv({ VITE_DEV_USER_PASSWORD: '' })).toEqual({ userPassword: null })
   })
 })
