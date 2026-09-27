@@ -900,6 +900,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_card_comment: {
+        Args: { p_body: string; p_card_id: string; p_mentions?: string[] }
+        Returns: {
+          author_id: string | null
+          body: string
+          card_id: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          mentions: string[]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "comments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       add_team_member: {
         Args: {
           p_email: string
@@ -920,6 +939,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      assign_card: {
+        Args: { p_assign?: boolean; p_card_id: string; p_user_id: string }
+        Returns: undefined
+      }
       board_id_from_storage_name: { Args: { p_name: string }; Returns: string }
       can_access_board: { Args: { p_board_id: string }; Returns: boolean }
       can_access_card: { Args: { p_card_id: string }; Returns: boolean }
@@ -934,6 +957,39 @@ export type Database = {
       can_edit_board: { Args: { p_board_id: string }; Returns: boolean }
       can_edit_card: { Args: { p_card_id: string }; Returns: boolean }
       can_edit_checklist: { Args: { p_checklist_id: string }; Returns: boolean }
+      card_id_from_storage_name: { Args: { p_name: string }; Returns: string }
+      copy_card: {
+        Args: {
+          p_card_id: string
+          p_list_id: string
+          p_position: string
+          p_title?: string
+        }
+        Returns: {
+          archived: boolean
+          board_id: string
+          cover_color: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          due_complete: boolean
+          due_date: string | null
+          id: string
+          list_id: string
+          position: string
+          priority: Database["public"]["Enums"]["card_priority"]
+          start_date: string | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cards"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_board: {
         Args: {
           p_background?: string

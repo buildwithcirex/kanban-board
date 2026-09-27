@@ -17,6 +17,8 @@ export const queryKeys = {
     ['boards', boardId, 'lists', { archived }] as const,
   boardCards: (boardId: string, archived: boolean) =>
     ['boards', boardId, 'cards', { archived }] as const,
+  cardDetail: (cardId: string) => ['cards', cardId, 'detail'] as const,
+  boardLabels: (boardId: string) => ['boards', boardId, 'labels'] as const,
   boardBackground: (path: string) => ['background', path] as const,
   supabaseHealth: ['supabase-health'] as const,
 } as const

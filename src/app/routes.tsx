@@ -29,6 +29,8 @@ export const routes: RouteObject[] = [
       { path: 'teams', element: <TeamsPage />, handle: handle('Teams') },
       { path: 't/:teamId', element: <TeamPage />, handle: handle('Team') },
       { path: 't/:teamId/b/:boardId', element: <BoardPage />, handle: handle('Board') },
+      // The card sheet opens over the board, so it shares the board's route element.
+      { path: 't/:teamId/b/:boardId/c/:cardId', element: <BoardPage />, handle: handle('Card') },
       { path: '*', element: <NotFoundPage />, handle: handle('Not found', { public: true }) },
     ],
   },

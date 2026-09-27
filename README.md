@@ -3,8 +3,9 @@
 Team Kanban board (Trello-style) with assignments, a ReactFlow board canvas, PWA install and Android push notifications. Backend: Supabase.
 
 Working today: teams (create, switch, roles, add/remove members) and boards (create, private
-boards, backgrounds, lists, archive/restore) and a drag-and-drop card canvas built on ReactFlow,
-on top of a fully locked-down Postgres schema. Card detail is next.
+boards, backgrounds, lists, archive/restore) a drag-and-drop card canvas built on ReactFlow, and
+full card detail (assignees, labels, dates, checklists, comments with @mentions, attachments), on
+top of a fully locked-down Postgres schema. My Tasks is next.
 
 [context.md](context.md) is the current state of the project — read it first.
 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) has the architecture and the phases.
