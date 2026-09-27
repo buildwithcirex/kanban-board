@@ -77,6 +77,40 @@
     outline-offset: 2px;
   }
 
+  /* The board's motion.
+     Cards that are not being carried ease to their slot, which is what makes a gap open ahead of
+     the dragged card and close behind it. The carried card has no transition at all, so it tracks
+     the pointer exactly — a transition there would make it lag behind the finger. When the drag
+     ends the class flips back and the same easing carries the card the last few pixels into its
+     slot, so a drop settles instead of snapping.
+     Transform only, so all of it stays on the compositor. */
+  .board-card {
+    transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform;
+  }
+
+  .board-card-dragging {
+    transition: none;
+  }
+
+  /* Lists slide the same way when a column is reordered. */
+  .react-flow__node-list {
+    transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .react-flow__node-list.dragging {
+    transition: none;
+  }
+
+  /* ReactFlow paints its own background; the board supplies one. */
+  .board-canvas .react-flow__pane {
+    cursor: grab;
+  }
+
+  .board-canvas .react-flow__pane.dragging {
+    cursor: grabbing;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -85,6 +119,11 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
+    }
+
+    .board-card,
+    .react-flow__node-list {
+      transition: none;
     }
   }
 }
