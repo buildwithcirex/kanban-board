@@ -78,7 +78,9 @@ describe('TeamNav', () => {
   it('reports a failure to load rather than showing an empty list', async () => {
     vi.mocked(api.listMyTeams).mockRejectedValue(new AppError('unknown', 'boom'))
     renderApp('/')
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load teams")
+    // Scoped: tests run without Supabase configured, so the shell also shows a config banner.
+    const nav = await screen.findByRole('region', { name: 'Your teams' })
+    expect(await within(nav).findByRole('alert')).toHaveTextContent("Couldn't load teams")
     expect(screen.queryByText('No teams yet')).not.toBeInTheDocument()
   })
 })
