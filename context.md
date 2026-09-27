@@ -7,31 +7,31 @@ happens, so a fresh session does not have to reverse-engineer the repo.
   reference: where behaviour is unspecified, do what Trello does.
 - **The plan:** [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — architecture, domain
   model and the 12 phases. It is the contract for technology choices; do not deviate from it.
-- **Last updated:** 2026-09-26 — Phase 3 done and verified against the live dev project.
+- **Last updated:** 2026-09-27 — Phase 4 done and verified against the live dev project.
 
 ---
 
 ## Where we are
 
-| Phase                               | Status                                                             |
-| ----------------------------------- | ------------------------------------------------------------------ |
-| 0 — Foundation                      | ✅ done                                                            |
-| 1 — Schema, RLS & dev users         | ✅ done — migrations pushed, seeded, sign-in and RLS verified live |
-| 2 — Teams & members                 | ✅ done — create, switch, roles, add/remove, verified live         |
-| 3 — Boards & lists                  | ✅ done — boards, private boards, backgrounds, lists, archiving    |
-| 4 — ReactFlow Kanban                | ⬜ next                                                            |
-| 5 — Card detail                     | ⬜                                                                 |
-| 6 — My Tasks & team views           | ⬜                                                                 |
-| 7 — Realtime & in-app notifications | ⬜                                                                 |
-| 8 — PWA + Android push              | ⬜                                                                 |
-| 9 — Extra views & productivity      | ⬜                                                                 |
-| 10 — Hardening & deploy             | ⬜                                                                 |
-| 11 — Authentication UI              | ⬜ (last, on purpose)                                              |
+| Phase                               | Status                                                                |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| 0 — Foundation                      | ✅ done                                                               |
+| 1 — Schema, RLS & dev users         | ✅ done — migrations pushed, seeded, sign-in and RLS verified live    |
+| 2 — Teams & members                 | ✅ done — create, switch, roles, add/remove, verified live            |
+| 3 — Boards & lists                  | ✅ done — boards, private boards, backgrounds, lists, archiving       |
+| 4 — ReactFlow Kanban                | ✅ done — drag, gap animation, move_card, Move… menu, my-cards filter |
+| 5 — Card detail                     | ⬜ next                                                               |
+| 6 — My Tasks & team views           | ⬜                                                                    |
+| 7 — Realtime & in-app notifications | ⬜                                                                    |
+| 8 — PWA + Android push              | ⬜                                                                    |
+| 9 — Extra views & productivity      | ⬜                                                                    |
+| 10 — Hardening & deploy             | ⬜                                                                    |
+| 11 — Authentication UI              | ⬜ (last, on purpose)                                                 |
 
 ### Database state
 
 The dev project is **linked, migrated and seeded**. Sign-in works and `npm run test:rls` passes
-(68 tests) against it. `src/types/database.types.ts` is generated from the live schema.
+(78 tests) against it. `src/types/database.types.ts` is generated from the live schema.
 
 Useful commands (the CLI is logged in and linked):
 
@@ -218,6 +218,25 @@ src/
   a move rewrites one row. ⚠️ Sort with `comparePositions`, never `localeCompare`: the columns are
   `collate "C"` (byte order) and the two disagree on mixed case. `sortByPosition` breaks ties on
   id so concurrent inserts still land in one stable order.
+- **The board canvas is ReactFlow** (`features/board-canvas/`). Lists and cards are _separate_
+  nodes, not nested: a card has to be able to leave its column, which it cannot do as a child of
+  it. Card positions are computed by `layout.ts` and never stored — the database only knows a
+  card's list and its fractional index.
+  ⚠️ **Node objects are cached and reused while nothing about them changes, and that is load
+  bearing.** The proof of concept measured a drag step on a 300-card board at **20–44ms** when
+  every node object was rebuilt and **10–11ms** when unchanged cards kept their identity; 44ms is
+  three dropped frames per pointer move. `onlyRenderVisibleElements` is a separate fix — it keeps
+  the DOM small (300 cards → 36 nodes) but does not reduce the per-step cost.
+- **Card heights are computed, not measured** (`cardHeight`). Measuring would mean laying out,
+  measuring, then laying out again. The card is then _drawn_ at exactly that height, so the
+  estimate is authoritative — otherwise the drop index, which is derived from these heights,
+  slowly stops matching what the eye sees down a long list.
+- **The card body is the drag surface.** Only the small buttons carry ReactFlow's `nodrag`; the
+  title does not, because marking it nodrag left almost nowhere to grab the card. A click that
+  travelled more than 4px is treated as a drag, not a tap.
+- **Motion:** cards that are not being carried ease to their slot (that is the gap opening and
+  closing); the carried card has no transition so it tracks the pointer exactly; on drop the class
+  flips back and the same easing settles it into place. All transform-only.
 - **Backgrounds are one text column** with a prefix: `color:#rrggbb` or `image:<path>`. Parsing
   lives in `lib/api/boards.ts`; anything unrecognised renders as the default surface.
 - **The dev switcher cannot ship.** It is behind `import.meta.env.DEV` and loaded with `lazy()`,
@@ -241,6 +260,8 @@ src/
   are `security definer`, network tests are the only proof the checks exist.
 - `tests/rls/boards.test.ts` — boards, private boards, archiving, lists and the storage bucket,
   including a real upload and a fetch of the public URL to prove the bucket is not public.
+- `tests/rls/cards.test.ts` — the card RPCs: who may add and move, and that a card can never be
+  moved onto another board.
   ⚠️ All three files share the seeded fixture, so **anything a test changes it must put back**:
   Product must end as ada (owner), grace (admin), linus (member), with "Roadmap" the only board.
   Cleanup happens in `afterEach`; running the suite twice in a row is the check that it works.
@@ -253,7 +274,7 @@ src/
 - The RLS suites skip themselves when the env vars are absent.
 
 Migrations are also executed in an in-process Postgres (PGlite) in the scratchpad before being
-pushed — 45 policy assertions for Phase 1, 31 for Phase 2, 45 for Phase 3. That is how the
+pushed — 45 policy assertions for Phase 1, 31 for Phase 2, 45 for Phase 3, 21 for Phase 4. That is how the
 `create_team` and `set_board_visibility` RETURNING bugs were both found before they reached the
 database. The harness is **not** in the repo; it could be added as a no-network RLS
 test if wanted (costs a ~30 MB dev dependency).
@@ -271,33 +292,42 @@ test if wanted (costs a ~30 MB dev dependency).
 
 ---
 
-## Next: Phase 4 — ReactFlow Kanban
+## Next: Phase 5 — Card detail
 
-Scope from the plan: a proof of concept first, then list and card nodes, computed layout, drag
-with gap animation, the `move_card` RPC, list reorder, long-press on touch, a "Move…" menu,
-the card front, the **assigned-to-me highlight** and a "My cards only" switch. Done when order
-persists, drag works with mouse and touch, and a 300-card board stays smooth.
+Scope from the plan: a sheet/dialog with description, **assignees** (`assign_card` RPC), labels,
+dates, priority, checklists, comments with @mentions, attachments (Storage), the activity feed,
+and move/copy/archive. Done when fields round-trip and only team members can be assigned.
 
-⚠️ The plan flags this as the riskiest phase: **start with the proof of concept** for drag,
-animation and touch before building anything on top of it. The "Move…" menu is the fallback if
-ReactFlow turns out to be a poor fit for list-sorting, and it is needed for keyboard access
-regardless.
+Already in place:
 
-Already in place for it:
+- Every table (Phase 1) plus `can_assign_to_card`, which already refuses anyone outside the team.
+- `BoardPage` passes `onOpenCard` to the canvas; it currently just announces a placeholder. Wire
+  the sheet to that.
+- `MoveCardDialog` already does move; copy/archive belong next to it.
+- The `board-backgrounds` bucket shows the pattern for the attachments bucket: private, object
+  named `<parent id>/<random>`, policies reading the first path segment.
 
-- `cards` and `card_assignees` tables, policies and indexes (Phase 1), including
-  `cards(list_id, position)` and `card_assignees(user_id)`.
-- `can_assign_to_card` already refuses anyone outside the board's team.
-- `lib/ordering.ts` — `positionAtIndex` is written for exactly this: pass the list _without_ the
-  card being moved and the index it should land at.
-- `ListColumn` renders a placeholder where cards go, and the board already scrolls and snaps.
+Watch out for:
 
-Still needed:
+- `assign_card` should write the assignment, the activity entry **and** the notification in one
+  transaction, the way `add_team_member` does.
+- Adding a row to the card front (a description marker, a checklist badge) changes its height, so
+  update `cardHeight` in `features/board-canvas/layout.ts` at the same time, or the drop index
+  will drift from what is drawn.
 
-- `@xyflow/react` is not installed yet.
-- `src/lib/api/cards.ts` + `useCards.ts`, and a `move_card` RPC (card + activity + notification
-  in one transaction — and check the RETURNING trap again: a card's SELECT policy reads the
-  _board_, which exists, so a plain insert should be fine).
-- The assigned-to-me highlight needs the signed-in user id, which `useAuth` already provides.
-- Remember the RLS-is-not-a-row-filter rule: `card_assignees` will return every assignee of a
-  visible card, so "my cards" must filter on `user_id` in the query.
+---
+
+## Known gaps
+
+- **Ownership transfer** does not exist: a team's owner row is immutable, so a team cannot change
+  hands. Decide before Phase 11.
+- **A private board its members all leave** becomes invisible and can only be removed with the
+  team — a team admin cannot delete a board they cannot see. Pinned by a test.
+- **Cards in an archived list disappear from the board** but stay `archived = false`. Harmless
+  today; ⚠️ Phase 6's My Tasks must exclude them, or they will show up as live work.
+- **Touch long-press to drag is unverified on a real device.** The rules are unit-tested
+  (`useTouchDragArming.test.ts`) but the gesture itself cannot be driven by this project's
+  tooling — synthetic pointer events cannot take pointer capture. Check it by hand on a phone.
+- **`npm run lint` cannot run on this machine**: an Application Control policy blocks oxlint's
+  native binary after npm re-extracts it, and no wasm fallback is published. Everything else in
+  `npm run check` passes.

@@ -962,6 +962,33 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_card: {
+        Args: { p_list_id: string; p_position: string; p_title: string }
+        Returns: {
+          archived: boolean
+          board_id: string
+          cover_color: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          due_complete: boolean
+          due_date: string | null
+          id: string
+          list_id: string
+          position: string
+          priority: Database["public"]["Enums"]["card_priority"]
+          start_date: string | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cards"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_team: {
         Args: { p_color?: string; p_description?: string; p_name: string }
         Returns: {
@@ -990,6 +1017,33 @@ export type Database = {
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
       is_team_owner: { Args: { p_team_id: string }; Returns: boolean }
+      move_card: {
+        Args: { p_card_id: string; p_list_id: string; p_position: string }
+        Returns: {
+          archived: boolean
+          board_id: string
+          cover_color: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          due_complete: boolean
+          due_date: string | null
+          id: string
+          list_id: string
+          position: string
+          priority: Database["public"]["Enums"]["card_priority"]
+          start_date: string | null
+          title: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cards"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       remove_team_member: {
         Args: { p_team_id: string; p_user_id: string }
         Returns: undefined

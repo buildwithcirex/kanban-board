@@ -1,32 +1,76 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { Archive, Lock, Settings2, SquareKanban } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { useSetPageTitle } from '@/app/pageTitle'
-import { useMyRole } from '@/features/teams/useTeams'
+import { AddCardDialog } from '@/features/board-canvas/AddCardDialog'
+import { BoardCanvas, type BoardFilter } from '@/features/board-canvas/BoardCanvas'
+import { MoveCardDialog } from '@/features/board-canvas/MoveCardDialog'
+import { useBoardCards, useCreateCard, useMoveCard } from '@/features/board-canvas/useCards'
+import { useAuth } from '@/features/auth/useAuth'
+import { useMyRole, useTeamMembers } from '@/features/teams/useTeams'
 import { errorMessage } from '@/lib/api/errors'
 import { cn } from '@/lib/cn'
-import { positionAtEnd } from '@/lib/ordering'
+import { positionAtEnd, positionAtIndex, sortByPosition } from '@/lib/ordering'
 import { BoardSettingsDialog } from './BoardSettingsDialog'
 import { AddListForm, ListColumn } from './ListColumn'
 import { useBoard, useBoardBackground } from './useBoards'
-import { useBoardLists, useCreateList } from './useLists'
+import { useBoardLists, useCreateList, useUpdateList } from './useLists'
 
 export function BoardPage() {
   const { teamId, boardId } = useParams<{ teamId: string; boardId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const board = useBoard(boardId)
   const myRole = useMyRole(teamId)
+  const members = useTeamMembers(teamId)
   const [showArchived, setShowArchived] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [filter, setFilter] = useState<BoardFilter>({ mineOnly: false, memberId: null })
+  const [addingToList, setAddingToList] = useState<string | null>(null)
+  const [movingCard, setMovingCard] = useState<string | null>(null)
+  const [announcement, setAnnouncement] = useState('')
 
   const lists = useBoardLists(boardId, showArchived)
+  const cards = useBoardCards(boardId)
   const createList = useCreateList(boardId ?? '')
+  const updateList = useUpdateList(boardId ?? '')
+  const createCard = useCreateCard(boardId ?? '')
+  const moveCard = useMoveCard(boardId ?? '')
   const { color, imageUrl } = useBoardBackground(board.data?.background ?? null)
 
   useSetPageTitle(board.data?.title)
+
+  const listById = useMemo(
+    () => new Map((lists.data ?? []).map((list) => [list.id, list])),
+    [lists.data],
+  )
+
+  /** Moves the card and says where it ended up, for the board's live region. */
+  const handleMoveCard = useCallback(
+    (move: { cardId: string; listId: string; position: string }) => {
+      moveCard.mutate(move)
+
+      const card = (cards.data ?? []).find((item) => item.id === move.cardId)
+      const target = listById.get(move.listId)
+      if (!card || !target) return
+
+      const others = (cards.data ?? [])
+        .filter((item) => item.list_id === move.listId && item.id !== move.cardId)
+        .map((item) => ({ id: item.id, position: item.position }))
+      const index = sortByPosition([...others, { id: move.cardId, position: move.position }])
+        .map((item) => item.id)
+        .indexOf(move.cardId)
+
+      setAnnouncement(
+        `${card.title} moved to ${target.title}, position ${index + 1} of ${others.length + 1}`,
+      )
+    },
+    [cards.data, listById, moveCard],
+  )
 
   if (board.isPending) {
     return (
@@ -56,6 +100,7 @@ export function BoardPage() {
   // there would be no way to restore anything from it.
   const editable = !board.data.archived
   const onDark = Boolean(color || imageUrl)
+  const movingCardData = (cards.data ?? []).find((card) => card.id === movingCard) ?? null
 
   return (
     <div
@@ -104,13 +149,43 @@ export function BoardPage() {
         </div>
 
         {/* Full width below `sm` so the buttons wrap under the title instead of crushing it. */}
-        <div className="flex shrink-0 items-center gap-2 max-sm:w-full max-sm:justify-end">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 max-sm:w-full max-sm:justify-end">
+          {!showArchived && (
+            <>
+              <Button
+                size="sm"
+                aria-pressed={filter.mineOnly}
+                className={cn(filter.mineOnly && 'border-accent text-accent')}
+                onClick={() =>
+                  setFilter((current) => ({ ...current, mineOnly: !current.mineOnly }))
+                }
+              >
+                My cards only
+              </Button>
+              <Select
+                label="Highlight a teammate's cards"
+                hideLabel
+                value={filter.memberId ?? ''}
+                className="h-8 w-40 text-xs"
+                onChange={(event) =>
+                  setFilter((current) => ({ ...current, memberId: event.target.value || null }))
+                }
+              >
+                <option value="">Everyone</option>
+                {(members.data ?? []).map((member) => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.name}
+                  </option>
+                ))}
+              </Select>
+            </>
+          )}
           <Button
             size="sm"
             onClick={() => setShowArchived((value) => !value)}
             aria-pressed={showArchived}
           >
-            {showArchived ? 'Show active lists' : 'Show archived lists'}
+            {showArchived ? 'Show the board' : 'Archived lists'}
           </Button>
           <Button
             size="sm"
@@ -131,44 +206,118 @@ export function BoardPage() {
         </p>
       )}
 
-      {lists.isError && (
-        <p role="alert" className="mx-4 text-sm text-danger md:mx-6">
-          {errorMessage(lists.error)}
+      {(lists.isError || cards.isError || moveCard.isError) && (
+        <p role="alert" className="mx-4 mb-2 text-sm text-danger md:mx-6">
+          {errorMessage(lists.error ?? cards.error ?? moveCard.error)}
         </p>
       )}
 
-      {/* One list at a time snaps into view on a phone; they sit side by side from `md` up. */}
-      <div className="flex flex-1 snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:px-6">
-        {lists.isPending && (
-          <div className="flex items-center gap-2 text-sm text-fg-muted">
-            <Spinner label="Loading lists" /> Loading lists…
-          </div>
-        )}
+      {showArchived ? (
+        <div className="flex flex-1 snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 md:px-6">
+          {lists.data?.map((list) => (
+            <ListColumn key={list.id} list={list} boardId={board.data.id} editable={editable} />
+          ))}
+          {lists.data && lists.data.length === 0 && (
+            <p
+              className={cn(
+                'self-start rounded-md px-2 py-6 text-sm',
+                onDark ? 'text-white/80' : 'text-fg-muted',
+              )}
+            >
+              No archived lists.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="relative flex-1">
+          {(lists.isPending || cards.isPending) && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Spinner label="Loading the board" className="size-6 text-fg-muted" />
+            </div>
+          )}
 
-        {lists.data?.map((list) => (
-          <ListColumn key={list.id} list={list} boardId={board.data.id} editable={editable} />
-        ))}
+          {lists.data && cards.data && (
+            <BoardCanvas
+              lists={lists.data}
+              cards={cards.data}
+              members={members.data ?? []}
+              myUserId={user?.id ?? null}
+              editable={editable}
+              filter={filter}
+              announcement={announcement}
+              onMoveCard={handleMoveCard}
+              onReorderList={(listId, position) =>
+                updateList.mutate({ listId, patch: { position } })
+              }
+              onRenameList={(listId, title) => updateList.mutate({ listId, patch: { title } })}
+              onArchiveList={(listId, archived) =>
+                updateList.mutate({ listId, patch: { archived } })
+              }
+              onAddCard={setAddingToList}
+              onOpenCard={() => setAnnouncement('Card details arrive in the next phase')}
+              onRequestMove={setMovingCard}
+            />
+          )}
 
-        {lists.data && lists.data.length === 0 && (
-          <p
-            className={cn(
-              'self-start rounded-md px-2 py-6 text-sm',
-              onDark ? 'text-white/80' : 'text-fg-muted',
-            )}
-          >
-            {showArchived ? 'No archived lists.' : 'This board has no lists yet.'}
-          </p>
-        )}
+          {editable && lists.data && (
+            <div className="pointer-events-none absolute top-2 right-2 w-56">
+              <div className="pointer-events-auto">
+                <AddListForm
+                  pending={createList.isPending}
+                  onAdd={(title) =>
+                    createList.mutate({ title, position: positionAtEnd(lists.data) })
+                  }
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-        {editable && (
-          <AddListForm
-            pending={createList.isPending}
-            onAdd={(title) =>
-              createList.mutate({ title, position: positionAtEnd(lists.data ?? []) })
-            }
-          />
-        )}
-      </div>
+      <AddCardDialog
+        list={addingToList ? (listById.get(addingToList) ?? null) : null}
+        pending={createCard.isPending}
+        error={createCard.isError ? createCard.error : null}
+        onClose={() => {
+          setAddingToList(null)
+          createCard.reset()
+        }}
+        onAdd={(title) => {
+          if (!addingToList) return
+          const inList = (cards.data ?? [])
+            .filter((card) => card.list_id === addingToList)
+            .map((card) => ({ id: card.id, position: card.position }))
+          createCard.mutate(
+            { listId: addingToList, title, position: positionAtEnd(inList) },
+            {
+              onSuccess: () => {
+                setAddingToList(null)
+                setAnnouncement(`${title.trim()} added`)
+              },
+            },
+          )
+        }}
+      />
+
+      <MoveCardDialog
+        card={movingCardData}
+        lists={lists.data ?? []}
+        cards={cards.data ?? []}
+        pending={moveCard.isPending}
+        onClose={() => setMovingCard(null)}
+        onMove={(listId, index) => {
+          if (!movingCardData) return
+          const others = (cards.data ?? [])
+            .filter((card) => card.list_id === listId && card.id !== movingCardData.id)
+            .map((card) => ({ id: card.id, position: card.position }))
+          handleMoveCard({
+            cardId: movingCardData.id,
+            listId,
+            position: positionAtIndex(others, index),
+          })
+          setMovingCard(null)
+        }}
+      />
 
       <BoardSettingsDialog
         board={board.data}
