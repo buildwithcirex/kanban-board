@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TeamMember } from '@/lib/api/teams'
-import { describeActivity, findMentions, timeAgo } from './CommentsSection'
+import { describeActivity, findMentions, timeAgo } from './commentText'
 
 const member = (userId: string, name: string): TeamMember => ({
   userId,

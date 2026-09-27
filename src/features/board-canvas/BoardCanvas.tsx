@@ -99,6 +99,20 @@ function Canvas(props: BoardCanvasProps) {
 
   const cardIndex = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards])
 
+  // Cards that appeared since the last render animate in. Tracked rather than derived from
+  // `created_at` so a card someone else added arrives with the same movement.
+  const [seenCardIds] = useState(() => new Set<string>())
+  const freshCardIds = useMemo(() => {
+    const fresh = new Set<string>()
+    for (const card of cards) {
+      if (!seenCardIds.has(card.id)) {
+        fresh.add(card.id)
+        seenCardIds.add(card.id)
+      }
+    }
+    return fresh
+  }, [cards, seenCardIds])
+
   /**
    * Node objects are cached and reused while nothing about them changes.
    *
@@ -106,10 +120,10 @@ function Canvas(props: BoardCanvasProps) {
    * 300-card board at 20–44ms when every node object was rebuilt, and 10ms when unchanged cards
    * kept their identity. 44ms is three dropped frames per pointer move.
    */
-  const nodeCache = useRef(new Map<string, { key: string; node: Node }>())
+  const [nodeCache] = useState(() => new Map<string, { key: string; node: Node }>())
 
   const nodes = useMemo<Node[]>(() => {
-    const cache = nodeCache.current
+    const cache = nodeCache
     const orderedLists = sortByPosition(lists)
 
     const listNodes: ListNodeType[] = orderedLists.map((list, index) => ({
@@ -179,7 +193,11 @@ function Canvas(props: BoardCanvasProps) {
         selectable: false,
         // Everything except the card under the pointer slides to its new slot; that transition
         // is the whole animation (see index.css).
-        className: isDragging ? 'board-card-dragging' : 'board-card',
+        className: isDragging
+          ? 'board-card-dragging'
+          : freshCardIds.has(card.id)
+            ? 'board-card board-card-new'
+            : 'board-card',
         zIndex: isDragging ? 1000 : 1,
       }
       cache.set(card.id, { key, node })
@@ -203,6 +221,8 @@ function Canvas(props: BoardCanvasProps) {
     onAddCard,
     onOpenCard,
     onRequestMove,
+    nodeCache,
+    freshCardIds,
   ])
 
   const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
@@ -302,7 +322,7 @@ function Canvas(props: BoardCanvasProps) {
  * stored (plan §3), so two people dragging at once cannot write conflicting coordinates.
  */
 export function BoardCanvas(props: BoardCanvasProps) {
-  const liveRegionRef = useRef<HTMLParagraphElement>(null)
+  const liveRegionRef = useRef<HTMLOutputElement>(null)
 
   // Announced out of band so a move is audible to a screen reader, whether it came from a drag
   // or from the "Move…" dialog.
@@ -315,7 +335,7 @@ export function BoardCanvas(props: BoardCanvasProps) {
       <ReactFlowProvider>
         <Canvas {...props} />
       </ReactFlowProvider>
-      <p ref={liveRegionRef} role="status" aria-live="polite" className="sr-only" />
+      <output ref={liveRegionRef} aria-live="polite" className="sr-only" />
     </div>
   )
 }

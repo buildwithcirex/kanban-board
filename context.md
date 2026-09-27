@@ -7,7 +7,7 @@ happens, so a fresh session does not have to reverse-engineer the repo.
   reference: where behaviour is unspecified, do what Trello does.
 - **The plan:** [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — architecture, domain
   model and the 12 phases. It is the contract for technology choices; do not deviate from it.
-- **Last updated:** 2026-09-27 — Phase 5 done and verified against the live dev project.
+- **Last updated:** 2026-09-27 — Phase 6 done and verified against the live dev project.
 
 ---
 
@@ -31,7 +31,7 @@ happens, so a fresh session does not have to reverse-engineer the repo.
 ### Database state
 
 The dev project is **linked, migrated and seeded**. Sign-in works and `npm run test:rls` passes
-(90 tests) against it. `src/types/database.types.ts` is generated from the live schema.
+(92 tests) against it. `src/types/database.types.ts` is generated from the live schema.
 
 Useful commands (the CLI is logged in and linked):
 
@@ -237,6 +237,18 @@ src/
 - **Motion:** cards that are not being carried ease to their slot (that is the gap opening and
   closing); the carried card has no transition so it tracks the pointer exactly; on drop the class
   flips back and the same easing settles it into place. All transform-only.
+- ⚠️ **There is no `cards → boards` relationship for PostgREST to follow.** `cards.board_id` is
+  half of a composite foreign key to `lists(id, board_id)`, so an embed like `cards(boards(...))`
+  fails with PGRST200. Reach the board through the list: `cards(lists(boards(...)))`. Pinned by a
+  test in `tests/rls/cards.test.ts`.
+- **My Tasks filters archived parents in JavaScript**, because PostgREST cannot filter on the
+  parent of an embedded row. A card in an archived list keeps `archived = false`, so without that
+  filter it would show as live work even though the board does not draw it.
+- **Motion lives in `src/styles/index.css`**, not in components: two easing curves
+  (`--ease-glide`, `--ease-out-soft`) and three durations, plus `.animate-rise`, `.stagger`,
+  `.press` and the board's own card transitions. Everything animates transform and opacity only,
+  so it stays on the compositor, and all of it is switched off under `prefers-reduced-motion`.
+  Reach for a class rather than writing a new transition.
 - **The card sheet is one column at every width** (`components/ui/Sheet.tsx`): full screen on a
   phone, a centred panel from `sm` up. Built on `<dialog>`, so focus trapping, Escape and focus
   restoration come from the browser. It has its own route, `/t/:teamId/b/:boardId/c/:cardId`, so a
@@ -303,22 +315,27 @@ test if wanted (costs a ~30 MB dev dependency).
 
 ---
 
-## Next: Phase 6 — My Tasks & team views
+## Next: Phase 7 — Realtime & in-app notifications
 
-Scope from the plan: My Tasks across every team (overdue / today / this week / later), a team
-workload overview, and board filters. Done when a member sees exactly their assigned cards.
+Scope from the plan: Supabase Realtime channels per board, cache updates from those events, a
+notification bell and inbox on the `notifications` rows, read/unread, and an activity feed. Done
+when two browsers signed in as different users see each other's changes live.
 
-Already in place: `card_assignees(user_id)` is indexed, `cards(due_date)` is indexed for the
-not-done case, and `features/board-canvas/dueDate.ts` already buckets a date.
+Already in place:
 
-⚠️ Two traps waiting:
+- Every RPC since Phase 2 writes `notifications` and `activity` rows already, so the inbox has
+  real data to show the moment it is built — nothing else needs to change server-side.
+- `notifications` has `select` and `update` grants for the owner only (marking read), and no
+  insert grant at all, so a client can never forge one.
+- `queryKeys` is the single place to invalidate from when a Realtime event arrives.
 
-- **RLS is not a row filter for "mine".** `card_assignees` returns every assignee of a card you
-  can see, so the query must filter on `user_id` itself. Pinned by a test in
-  `tests/rls/cards.test.ts`.
-- **Cards in an archived list are still `archived = false`.** They vanish from the board because
-  the canvas only lays out cards whose list is active, but a naive My Tasks query would show them
-  as live work. Join through `lists` and exclude archived ones.
+Still needed:
+
+- Tables must be added to the `supabase_realtime` publication; that was deliberately left to this
+  phase.
+- The bell belongs in `AppShell`; "Inbox" is already the mobile tab label for `/notifications`.
+- ⚠️ Realtime respects RLS, but a board channel is per board — take care that leaving a team or a
+  private board unsubscribes, or a stale channel keeps pushing rows the user can no longer read.
 
 ---
 
@@ -330,9 +347,5 @@ not-done case, and `features/board-canvas/dueDate.ts` already buckets a date.
   team — a team admin cannot delete a board they cannot see. Pinned by a test.
 - **Cards in an archived list disappear from the board** but stay `archived = false`. Harmless
   today; ⚠️ Phase 6's My Tasks must exclude them, or they will show up as live work.
-- **Touch long-press to drag is unverified on a real device.** The rules are unit-tested
-  (`useTouchDragArming.test.ts`) but the gesture itself cannot be driven by this project's
-  tooling — synthetic pointer events cannot take pointer capture. Check it by hand on a phone.
-- **`npm run lint` cannot run on this machine**: an Application Control policy blocks oxlint's
-  native binary after npm re-extracts it, and no wasm fallback is published. Everything else in
-  `npm run check` passes.
+- **Touch long-press to drag** is still the one behaviour that cannot be exercised here; check it
+  on a phone.

@@ -64,7 +64,7 @@ export function BoardsPage() {
               />
               {team.name}
             </h3>
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {teamBoards.map((board) => (
                 <li key={board.id}>
                   <BoardTile board={board} />

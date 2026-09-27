@@ -203,12 +203,9 @@ export function BoardPage() {
       </header>
 
       {board.data.archived && (
-        <p
-          role="status"
-          className="mx-4 mb-2 rounded-md bg-warning/15 px-3 py-2 text-sm text-fg md:mx-6"
-        >
+        <output className="mx-4 mb-2 block rounded-md bg-warning/15 px-3 py-2 text-sm text-fg md:mx-6">
           This board is archived, so nothing on it can be changed. Restore it from Settings.
-        </p>
+        </output>
       )}
 
       {(lists.isError || cards.isError || moveCard.isError) && (

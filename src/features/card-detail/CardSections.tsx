@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Check, Paperclip, Plus, Trash2, X } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -49,6 +49,11 @@ export function DescriptionSection({
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value ?? '')
+  // Focus is a DOM call, not an attribute: autoFocus also fires on unrelated re-renders.
+  const draftRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (editing) draftRef.current?.focus()
+  }, [editing])
 
   if (!editing) {
     return (
@@ -77,7 +82,7 @@ export function DescriptionSection({
         onChange={(event) => setDraft(event.target.value)}
         maxLength={20000}
         className="min-h-32"
-        autoFocus
+        ref={draftRef}
       />
       <div className="flex gap-2">
         <Button
@@ -179,6 +184,10 @@ export function LabelsSection({
 }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
+  const nameRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (adding) nameRef.current?.focus()
+  }, [adding])
   const [color, setColor] = useState<string>(boardColors[0])
   const on = new Set(labelIds)
 
@@ -236,7 +245,7 @@ export function LabelsSection({
             value={name}
             onChange={(event) => setName(event.target.value)}
             maxLength={60}
-            autoFocus
+            ref={nameRef}
           />
           <div className="flex flex-wrap gap-1.5">
             {boardColors.map((swatch) => (

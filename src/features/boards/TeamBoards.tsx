@@ -64,7 +64,7 @@ export function TeamBoards({ teamId, canCreate }: TeamBoardsProps) {
       )}
 
       {boards.data && boards.data.length > 0 && (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="stagger grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {boards.data.map((board) => (
             <li key={board.id}>
               <BoardTile board={board} />

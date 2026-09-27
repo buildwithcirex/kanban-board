@@ -166,6 +166,38 @@ suite('RLS: card RPCs', () => {
     })
   })
 
+  describe('my tasks scoping', () => {
+    it('reaches the board through the list, because cards have no direct board FK', async () => {
+      // cards.board_id is half of a composite key to lists(id, board_id), so PostgREST has no
+      // cards -> boards relationship; asking for one fails with PGRST200.
+      const direct = await ada.db
+        .from('card_assignees')
+        .select('card_id, cards(id, boards(id))')
+        .limit(1)
+      expect(direct.error?.code).toBe('PGRST200')
+
+      const viaList = await ada.db
+        .from('card_assignees')
+        .select('card_id, cards(id, lists(archived, boards(id, archived)))')
+        .eq('user_id', ada.userId)
+        .limit(1)
+      expect(viaList.error).toBeNull()
+    })
+
+    it('only returns the caller’s own rows once filtered on user_id', async () => {
+      const card = await makeCard(ada, 'Shared assignment')
+      await ada.db
+        .from('card_assignees')
+        .insert([{ card_id: card.id, user_id: linus.userId, assigned_by: ada.userId }])
+
+      const mine = await linus.db
+        .from('card_assignees')
+        .select('user_id')
+        .eq('user_id', linus.userId)
+      expect((mine.data ?? []).every((row) => row.user_id === linus.userId)).toBe(true)
+    })
+  })
+
   describe('assignees', () => {
     it('are all readable, so "my cards" has to filter on user_id in the query', async () => {
       const card = await makeCard(ada, 'Shared')

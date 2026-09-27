@@ -18,6 +18,8 @@ export const queryKeys = {
   boardCards: (boardId: string, archived: boolean) =>
     ['boards', boardId, 'cards', { archived }] as const,
   cardDetail: (cardId: string) => ['cards', cardId, 'detail'] as const,
+  myTasks: (userId: string) => ['my-tasks', userId] as const,
+  teamWorkload: (teamId: string) => ['teams', teamId, 'workload'] as const,
   boardLabels: (boardId: string) => ['boards', boardId, 'labels'] as const,
   boardBackground: (path: string) => ['background', path] as const,
   supabaseHealth: ['supabase-health'] as const,

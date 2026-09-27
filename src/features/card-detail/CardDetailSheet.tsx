@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Archive, ArchiveRestore, Copy, MoveRight, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -69,9 +69,14 @@ export function CardDetailSheet({
   // An archived card is read-only until it is restored, the same rule as an archived board.
   const canEdit = editable && !cardArchived
 
-  useEffect(() => {
-    if (card) setTitle(card.title)
-  }, [card])
+  // Resetting the draft when a different card opens is a render-time adjustment, not a side
+  // effect: doing it in an effect would paint the previous card's title for one frame.
+  const [lastCardId, setLastCardId] = useState<string | null>(null)
+  if (card && card.id !== lastCardId) {
+    setLastCardId(card.id)
+    setTitle(card.title)
+    setTitleError(null)
+  }
 
   function saveTitle() {
     const issue = firstIssue(cardTitleSchema, title)
@@ -199,9 +204,9 @@ export function CardDetailSheet({
         {detail.data && (
           <div className="flex flex-col">
             {cardArchived && (
-              <p role="status" className="mb-3 rounded-md bg-warning/15 px-3 py-2 text-sm text-fg">
+              <output className="mb-3 block rounded-md bg-warning/15 px-3 py-2 text-sm text-fg">
                 This card is archived. Restore it to make changes.
-              </p>
+              </output>
             )}
 
             <DescriptionSection

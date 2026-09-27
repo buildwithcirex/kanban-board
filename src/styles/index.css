@@ -77,6 +77,105 @@
     outline-offset: 2px;
   }
 
+  /* ---------------------------------------------------------------------
+     Motion.
+
+     One easing curve for almost everything: a decelerating spring-ish curve
+     that starts fast and settles, which is what makes iOS feel unhurried
+     rather than slow. Durations are short — 180-320ms — because the curve,
+     not the length, is what reads as "smooth".
+
+     Everything animates transform and opacity only, so it runs on the
+     compositor and never triggers layout.
+     --------------------------------------------------------------------- */
+  :root {
+    --ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+    --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --dur-fast: 180ms;
+    --dur-base: 260ms;
+    --dur-slow: 320ms;
+  }
+
+  /* Something arriving: a card, a list row, a comment. Rises and fades in. */
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* A panel taking over the screen on a phone. */
+  @keyframes sheet-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.99);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-rise {
+    animation: rise-in var(--dur-base) var(--ease-out-soft) both;
+  }
+
+  /* Staggering a list makes it read as one movement instead of a flash.
+     Capped at six so a long list does not crawl in. */
+  .stagger > * {
+    animation: rise-in var(--dur-base) var(--ease-out-soft) both;
+  }
+  .stagger > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 30ms;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 60ms;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 90ms;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 120ms;
+  }
+  .stagger > *:nth-child(n + 6) {
+    animation-delay: 150ms;
+  }
+
+  /* Pressable things dip very slightly, the way an iOS control does. */
+  .press {
+    transition:
+      transform var(--dur-fast) var(--ease-glide),
+      background-color var(--dur-fast) var(--ease-glide),
+      opacity var(--dur-fast) var(--ease-glide);
+  }
+  .press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  dialog[open] {
+    animation: sheet-up var(--dur-base) var(--ease-glide) both;
+  }
+
+  dialog[open]::backdrop {
+    animation: fade-in var(--dur-base) var(--ease-glide) both;
+  }
+
   /* The board's motion.
      Cards that are not being carried ease to their slot, which is what makes a gap open ahead of
      the dragged card and close behind it. The carried card has no transition at all, so it tracks
@@ -85,8 +184,13 @@
      slot, so a drop settles instead of snapping.
      Transform only, so all of it stays on the compositor. */
   .board-card {
-    transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform var(--dur-base) var(--ease-glide);
     will-change: transform;
+  }
+
+  /* A brand new card settles in rather than appearing. */
+  .board-card-new {
+    animation: rise-in var(--dur-slow) var(--ease-out-soft) both;
   }
 
   .board-card-dragging {
@@ -95,7 +199,7 @@
 
   /* Lists slide the same way when a column is reordered. */
   .react-flow__node-list {
-    transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform var(--dur-base) var(--ease-glide);
   }
 
   .react-flow__node-list.dragging {
@@ -124,6 +228,18 @@
     .board-card,
     .react-flow__node-list {
       transition: none;
+    }
+
+    .animate-rise,
+    .stagger > *,
+    .board-card-new,
+    dialog[open],
+    dialog[open]::backdrop {
+      animation: none;
+    }
+
+    .press:active:not(:disabled) {
+      transform: none;
     }
   }
 }

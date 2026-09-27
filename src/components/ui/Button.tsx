@@ -20,7 +20,7 @@ const sizeClasses: Record<ButtonSize, string> = {
 }
 
 export const buttonBase =
-  'inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors select-none disabled:pointer-events-none disabled:opacity-50'
+  'press inline-flex shrink-0 items-center justify-center rounded-md font-medium select-none disabled:pointer-events-none disabled:opacity-50'
 
 type ButtonProps = ComponentProps<'button'> & {
   variant?: ButtonVariant

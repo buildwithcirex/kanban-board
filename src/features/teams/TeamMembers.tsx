@@ -189,7 +189,10 @@ export function TeamMembers({ teamId, myRole, myUserId, onLeft }: TeamMembersPro
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 md:p-5">
+    <section
+      aria-label="Members"
+      className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 md:p-5"
+    >
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-semibold">Members</h3>
         {members.data && (
@@ -214,7 +217,7 @@ export function TeamMembers({ teamId, myRole, myUserId, onLeft }: TeamMembersPro
       )}
 
       {members.data && (
-        <ul className="divide-y divide-border">
+        <ul className="stagger divide-y divide-border">
           {members.data.map((member) => (
             <MemberRow
               key={member.userId}

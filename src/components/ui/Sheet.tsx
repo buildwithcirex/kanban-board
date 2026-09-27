@@ -42,6 +42,8 @@ export function Sheet({ open, onClose, title, subtitle, children, footer }: Shee
   }, [open])
 
   return (
+    // Backdrop click is a mouse shortcut; Escape (onCancel) is the keyboard equivalent.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
     <dialog
       ref={ref}
       aria-labelledby={titleId}

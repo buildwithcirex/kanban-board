@@ -22,7 +22,7 @@ export function BoardTile({ board, teamName, className }: BoardTileProps) {
     <Link
       to={`/t/${board.team_id}/b/${board.id}`}
       className={cn(
-        'group relative flex h-24 flex-col justify-end overflow-hidden rounded-lg border border-border p-3 transition-colors',
+        'press group relative flex h-24 flex-col justify-end overflow-hidden rounded-lg border border-border p-3',
         !color && !imageUrl && 'bg-surface hover:bg-surface-sunken',
         className,
       )}

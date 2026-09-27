@@ -32,9 +32,13 @@ function ListNodeImpl({ data }: NodeProps<ListNodeType>) {
   const [title, setTitle] = useState(list.title)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
+  // Adopting a title saved elsewhere (a teammate, or the same list re-rendered) during render
+  // rather than in an effect avoids showing the stale one for a frame.
+  const [lastTitle, setLastTitle] = useState(list.title)
+  if (list.title !== lastTitle) {
+    setLastTitle(list.title)
     setTitle(list.title)
-  }, [list.title])
+  }
 
   useEffect(() => {
     if (editing) inputRef.current?.select()

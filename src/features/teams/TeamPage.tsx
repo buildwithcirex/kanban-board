@@ -11,6 +11,8 @@ import { useAuth } from '@/features/auth/useAuth'
 import { errorMessage } from '@/lib/api/errors'
 import type { TeamRole } from '@/lib/api/teams'
 import { TeamBoards } from '@/features/boards/TeamBoards'
+import { TeamWorkload } from '@/features/my-tasks/TeamWorkload'
+import { useTeamMembers } from './useTeams'
 import { TeamMembers } from './TeamMembers'
 import { TeamSettingsDialog } from './TeamSettingsDialog'
 import { useDeleteTeam, useMyRole, useTeam } from './useTeams'
@@ -30,6 +32,7 @@ export function TeamPage() {
   const team = useTeam(teamId)
   const myRole = useMyRole(teamId)
   const deleteTeam = useDeleteTeam()
+  const members = useTeamMembers(teamId)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -100,6 +103,8 @@ export function TeamPage() {
       </div>
 
       <TeamBoards teamId={team.data.id} canCreate={myRole !== null} />
+
+      <TeamWorkload teamId={team.data.id} members={members.data ?? []} />
 
       <TeamMembers
         teamId={team.data.id}

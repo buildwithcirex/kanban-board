@@ -19,7 +19,7 @@ describe('AppShell', () => {
       'aria-current',
       'page',
     )
-    expect(screen.getByText('Nothing assigned to you')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'My Tasks' })).toBeInTheDocument()
   })
 
   it('shows a not-found page for unknown routes, signed in or not', async () => {
@@ -32,7 +32,7 @@ describe('AuthGate', () => {
   it('hides private pages until there is a session', async () => {
     renderApp('/my-tasks', { status: 'signed-out' })
     expect(await screen.findByText('Sign in to continue')).toBeInTheDocument()
-    expect(screen.queryByText('Nothing assigned to you')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'My Tasks' })).not.toBeInTheDocument()
   })
 
   it('waits instead of flashing the sign-in prompt while the session is restored', () => {

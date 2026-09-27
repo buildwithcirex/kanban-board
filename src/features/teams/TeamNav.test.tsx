@@ -6,6 +6,12 @@ import type { Team } from '@/lib/api/teams'
 import { renderApp } from '@/test/renderApp'
 // Type-only, so it is erased before the hoisted vi.mock factory runs.
 import type * as TeamsApi from '@/lib/api/teams'
+import type * as MyTasksApi from '@/lib/api/myTasks'
+
+vi.mock('@/lib/api/myTasks', () => ({
+  listMyTasks: vi.fn<typeof MyTasksApi.listMyTasks>(),
+  getTeamWorkload: vi.fn<typeof MyTasksApi.getTeamWorkload>(),
+}))
 
 vi.mock('@/lib/api/teams', () => ({
   listMyTeams: vi.fn<typeof TeamsApi.listMyTeams>(),
@@ -20,6 +26,7 @@ vi.mock('@/lib/api/teams', () => ({
 }))
 
 const api = await import('@/lib/api/teams')
+const myTasksApi = await import('@/lib/api/myTasks')
 
 function makeTeam(id: string, name: string): Team {
   return {
@@ -39,6 +46,8 @@ function sidebar() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(myTasksApi.getTeamWorkload).mockResolvedValue([])
+  vi.mocked(myTasksApi.listMyTasks).mockResolvedValue([])
   vi.mocked(api.listTeamMembers).mockResolvedValue([])
 })
 
@@ -110,7 +119,7 @@ describe('CreateTeamDialog', () => {
         color: '#20bf6b',
       }),
     )
-    await screen.findByRole('heading', { name: 'Growth' })
+    await screen.findByRole('heading', { level: 2, name: 'Growth' })
   })
 
   it('keeps the dialog open and explains when the server refuses', async () => {

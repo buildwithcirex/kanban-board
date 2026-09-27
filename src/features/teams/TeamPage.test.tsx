@@ -4,14 +4,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppError } from '@/lib/api/errors'
 import type { Team, TeamMember, TeamRole } from '@/lib/api/teams'
 import { renderApp } from '@/test/renderApp'
+
+/** Member names also appear in the workload panel, so member assertions are scoped here. */
+const membersSection = () => within(screen.getByRole('region', { name: 'Members' }))
 // Type-only, so it is erased before the hoisted vi.mock factory runs.
 import type * as TeamsApi from '@/lib/api/teams'
+import type * as MyTasksApi from '@/lib/api/myTasks'
 
 /**
  * The team page decides what an owner, an admin and a member are each allowed to see. The
  * database enforces the same rules (tests/rls/team-members.test.ts) — these tests are about the
  * interface not offering an action the server would refuse, and not hiding one it would allow.
  */
+
+vi.mock('@/lib/api/myTasks', () => ({
+  listMyTasks: vi.fn<typeof MyTasksApi.listMyTasks>(),
+  getTeamWorkload: vi.fn<typeof MyTasksApi.getTeamWorkload>(),
+}))
 
 vi.mock('@/lib/api/teams', () => ({
   listMyTeams: vi.fn<typeof TeamsApi.listMyTeams>(),
@@ -26,6 +35,7 @@ vi.mock('@/lib/api/teams', () => ({
 }))
 
 const api = await import('@/lib/api/teams')
+const myTasksApi = await import('@/lib/api/myTasks')
 
 // Matches the signed-in user that renderApp stubs.
 const ME = '00000000-0000-4000-8000-000000000001'
@@ -73,6 +83,8 @@ function setup(myRole: TeamRole) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(myTasksApi.getTeamWorkload).mockResolvedValue([])
+  vi.mocked(myTasksApi.listMyTasks).mockResolvedValue([])
 })
 
 describe('TeamPage', () => {
@@ -80,12 +92,13 @@ describe('TeamPage', () => {
     setup('member')
     renderApp(`/t/${TEAM_ID}`)
 
-    expect(await screen.findByRole('heading', { name: 'Product' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 2, name: 'Product' })).toBeInTheDocument()
     // The settings dialog holds the same text in a textarea, so match the paragraph specifically.
     expect(
       screen.getByText('Everything we are shipping this quarter.', { selector: 'p' }),
     ).toBeInTheDocument()
-    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Members' })).toBeInTheDocument()
+    expect(membersSection().getByText('Ada Lovelace')).toBeInTheDocument()
     // setup() puts the signed-in user in place of the seeded person with that role.
     expect(screen.getByText('3 people')).toBeInTheDocument()
   })
@@ -94,7 +107,7 @@ describe('TeamPage', () => {
     setup('member')
     renderApp(`/t/${TEAM_ID}`)
 
-    await screen.findByRole('heading', { name: 'Product' })
+    await screen.findByRole('heading', { level: 2, name: 'Product' })
     await waitFor(() => expect(document.title).toBe('Product · Kanban'))
   })
 
@@ -108,9 +121,9 @@ describe('TeamPage', () => {
     it('offers no way to add, promote or remove anyone else', async () => {
       setup('member')
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
-      await screen.findByText('Ada Lovelace')
+      await screen.findByRole('region', { name: 'Members' })
       expect(screen.queryByLabelText('Add by email')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Settings' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
@@ -129,7 +142,7 @@ describe('TeamPage', () => {
     it('can manage members but cannot delete the team', async () => {
       setup('admin')
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
       expect(screen.getByLabelText('Add by email')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument()
@@ -139,9 +152,9 @@ describe('TeamPage', () => {
     it('leaves the owner alone: no role control, no remove button', async () => {
       setup('admin')
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
-      await screen.findByText('Linus Torvalds')
+      await screen.findByRole('region', { name: 'Members' })
       expect(screen.queryByLabelText('Role for Ada Lovelace')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Remove Ada Lovelace' })).not.toBeInTheDocument()
       expect(screen.getByLabelText('Role for Linus Torvalds')).toBeInTheDocument()
@@ -151,7 +164,7 @@ describe('TeamPage', () => {
       setup('admin')
       vi.mocked(api.addTeamMember).mockResolvedValue()
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
       await userEvent.type(screen.getByLabelText('Add by email'), 'new@kanban.test')
       await userEvent.selectOptions(screen.getByLabelText('Role'), 'admin')
@@ -170,7 +183,7 @@ describe('TeamPage', () => {
     it('rejects a malformed address without calling the server', async () => {
       setup('admin')
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
       await userEvent.type(screen.getByLabelText('Add by email'), 'not-an-email')
       await userEvent.click(screen.getByRole('button', { name: 'Add' }))
@@ -185,7 +198,7 @@ describe('TeamPage', () => {
         new AppError('not-found', 'No account uses that email address yet.'),
       )
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
       await userEvent.type(screen.getByLabelText('Add by email'), 'nobody@kanban.test')
       await userEvent.click(screen.getByRole('button', { name: 'Add' }))
@@ -197,9 +210,9 @@ describe('TeamPage', () => {
       setup('admin')
       vi.mocked(api.setTeamMemberRole).mockResolvedValue()
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
-      await screen.findByText('Linus Torvalds')
+      await screen.findByRole('region', { name: 'Members' })
       await userEvent.selectOptions(screen.getByLabelText('Role for Linus Torvalds'), 'admin')
 
       await waitFor(() =>
@@ -215,9 +228,9 @@ describe('TeamPage', () => {
       setup('admin')
       vi.mocked(api.removeTeamMember).mockResolvedValue()
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
-      await screen.findByText('Linus Torvalds')
+      await screen.findByRole('region', { name: 'Members' })
       await userEvent.click(screen.getByRole('button', { name: 'Remove Linus Torvalds' }))
       expect(await screen.findByText('Remove Linus Torvalds?')).toBeInTheDocument()
       expect(api.removeTeamMember).not.toHaveBeenCalled()
@@ -234,7 +247,7 @@ describe('TeamPage', () => {
       setup('owner')
       vi.mocked(api.deleteTeam).mockResolvedValue()
       const router = renderApp(`/t/${TEAM_ID}`)
-      await screen.findByRole('heading', { name: 'Product' })
+      await screen.findByRole('heading', { level: 2, name: 'Product' })
 
       await userEvent.click(screen.getByRole('button', { name: 'Delete' }))
       expect(await screen.findByText('Delete Product?')).toBeInTheDocument()
@@ -250,7 +263,7 @@ describe('TeamPage', () => {
     it('cannot leave their own team', async () => {
       setup('owner')
       renderApp(`/t/${TEAM_ID}`)
-      await screen.findByText('Linus Torvalds')
+      await screen.findByRole('region', { name: 'Members' })
       expect(screen.queryByRole('button', { name: 'Leave this team' })).not.toBeInTheDocument()
     })
   })

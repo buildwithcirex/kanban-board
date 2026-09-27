@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Select } from '@/components/ui/Select'
@@ -34,25 +34,24 @@ export function MoveCardDialog({
   const [listId, setListId] = useState('')
   const [index, setIndex] = useState(0)
 
-  useEffect(() => {
-    if (card) {
-      setListId(card.list_id)
-      const inList = sortByPosition(
-        cards
-          .filter((other) => other.list_id === card.list_id)
-          .map((other) => ({
-            id: other.id,
-            position: other.position,
-          })),
-      )
-      setIndex(
-        Math.max(
-          0,
-          inList.findIndex((other) => other.id === card.id),
-        ),
-      )
-    }
-  }, [card, cards])
+  // A render-time adjustment: the selects must show the card's own list and slot the moment it
+  // opens, not one frame later.
+  const [lastCardId, setLastCardId] = useState<string | null>(null)
+  if (card && card.id !== lastCardId) {
+    setLastCardId(card.id)
+    setListId(card.list_id)
+    const inList = sortByPosition(
+      cards
+        .filter((other) => other.list_id === card.list_id)
+        .map((other) => ({ id: other.id, position: other.position })),
+    )
+    setIndex(
+      Math.max(
+        0,
+        inList.findIndex((other) => other.id === card.id),
+      ),
+    )
+  }
 
   // Positions offered for the chosen list: every gap, plus the end. Moving within the card's own
   // list must not count the card itself, or "last" would be one short.

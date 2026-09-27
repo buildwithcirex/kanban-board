@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { Textarea } from '@/components/ui/Textarea'
@@ -27,11 +27,20 @@ export function AddCardDialog({ list, onClose, onAdd, pending, error }: AddCardD
   const [issue, setIssue] = useState<string | null>(null)
   const formId = 'add-card-form'
 
+  // Clearing the draft as a new list opens is a render-time adjustment; an effect would show the
+  // previous list's text for a frame.
+  const [lastListId, setLastListId] = useState<string | null>(null)
+  if (list && list.id !== lastListId) {
+    setLastListId(list.id)
+    setTitle('')
+    setIssue(null)
+  }
+
+  // Focus is a DOM effect, not state, so it belongs here rather than on an autoFocus attribute
+  // that would also steal focus when the dialog is merely re-rendered.
+  const fieldRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
-    if (list) {
-      setTitle('')
-      setIssue(null)
-    }
+    if (list) fieldRef.current?.focus()
   }, [list])
 
   function submit(event: FormEvent) {
@@ -73,7 +82,7 @@ export function AddCardDialog({ list, onClose, onAdd, pending, error }: AddCardD
           }}
           error={issue ?? (error ? errorMessage(error) : undefined)}
           maxLength={512}
-          autoFocus
+          ref={fieldRef}
         />
       </form>
     </Dialog>

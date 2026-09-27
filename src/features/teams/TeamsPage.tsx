@@ -53,12 +53,12 @@ export function TeamsPage() {
     )
   } else {
     body = (
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul className="stagger grid gap-3 sm:grid-cols-2">
         {teams.data.map(({ team, role }) => (
           <li key={team.id}>
             <Link
               to={`/t/${team.id}`}
-              className="flex h-full flex-col gap-1 rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong hover:bg-surface-sunken"
+              className="press flex h-full flex-col gap-1 rounded-lg border border-border bg-surface p-4 hover:border-border-strong hover:bg-surface-sunken"
             >
               <span className="flex items-center gap-2">
                 <span
