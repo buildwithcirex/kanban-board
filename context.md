@@ -7,7 +7,7 @@ happens, so a fresh session does not have to reverse-engineer the repo.
   reference: where behaviour is unspecified, do what Trello does.
 - **The plan:** [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — architecture, domain
   model and the 12 phases. It is the contract for technology choices; do not deviate from it.
-- **Last updated:** 2026-09-27 — Phase 4 done and verified against the live dev project.
+- **Last updated:** 2026-09-27 — Phase 5 done and verified against the live dev project.
 
 ---
 
@@ -31,7 +31,7 @@ happens, so a fresh session does not have to reverse-engineer the repo.
 ### Database state
 
 The dev project is **linked, migrated and seeded**. Sign-in works and `npm run test:rls` passes
-(78 tests) against it. `src/types/database.types.ts` is generated from the live schema.
+(90 tests) against it. `src/types/database.types.ts` is generated from the live schema.
 
 Useful commands (the CLI is logged in and linked):
 
@@ -237,6 +237,15 @@ src/
 - **Motion:** cards that are not being carried ease to their slot (that is the gap opening and
   closing); the carried card has no transition so it tracks the pointer exactly; on drop the class
   flips back and the same easing settles it into place. All transform-only.
+- **The card sheet is one column at every width** (`components/ui/Sheet.tsx`): full screen on a
+  phone, a centred panel from `sm` up. Built on `<dialog>`, so focus trapping, Escape and focus
+  restoration come from the browser. It has its own route, `/t/:teamId/b/:boardId/c/:cardId`, so a
+  card can be linked to and the back button closes it.
+- **Mentions are parsed on the client but filtered on the server.** `add_card_comment` drops any
+  mention that is not a member of the board's team — otherwise a crafted request could notify, and
+  so confirm the existence of, any account.
+- ⚠️ **`Input` and `Select` put `className` on the control, not the wrapper.** Passing `flex-1`
+  collapses the field to a zero basis; use `wrapperClassName` (Input) or a wrapping element.
 - **Backgrounds are one text column** with a prefix: `color:#rrggbb` or `image:<path>`. Parsing
   lives in `lib/api/boards.ts`; anything unrecognised renders as the default surface.
 - **The dev switcher cannot ship.** It is behind `import.meta.env.DEV` and loaded with `lazy()`,
@@ -262,6 +271,8 @@ src/
   including a real upload and a fetch of the public URL to prove the bucket is not public.
 - `tests/rls/cards.test.ts` — the card RPCs: who may add and move, and that a card can never be
   moved onto another board.
+- `tests/rls/card-detail.test.ts` — who may be assigned, whose mentions are honoured, that a copy
+  cannot cross boards, and the attachment bucket.
   ⚠️ All three files share the seeded fixture, so **anything a test changes it must put back**:
   Product must end as ada (owner), grace (admin), linus (member), with "Roadmap" the only board.
   Cleanup happens in `afterEach`; running the suite twice in a row is the check that it works.
@@ -274,7 +285,7 @@ src/
 - The RLS suites skip themselves when the env vars are absent.
 
 Migrations are also executed in an in-process Postgres (PGlite) in the scratchpad before being
-pushed — 45 policy assertions for Phase 1, 31 for Phase 2, 45 for Phase 3, 21 for Phase 4. That is how the
+pushed — 45 policy assertions for Phase 1, 31 for Phase 2, 45 for Phase 3, 21 for Phase 4, 38 for Phase 5. That is how the
 `create_team` and `set_board_visibility` RETURNING bugs were both found before they reached the
 database. The harness is **not** in the repo; it could be added as a no-network RLS
 test if wanted (costs a ~30 MB dev dependency).
@@ -292,28 +303,22 @@ test if wanted (costs a ~30 MB dev dependency).
 
 ---
 
-## Next: Phase 5 — Card detail
+## Next: Phase 6 — My Tasks & team views
 
-Scope from the plan: a sheet/dialog with description, **assignees** (`assign_card` RPC), labels,
-dates, priority, checklists, comments with @mentions, attachments (Storage), the activity feed,
-and move/copy/archive. Done when fields round-trip and only team members can be assigned.
+Scope from the plan: My Tasks across every team (overdue / today / this week / later), a team
+workload overview, and board filters. Done when a member sees exactly their assigned cards.
 
-Already in place:
+Already in place: `card_assignees(user_id)` is indexed, `cards(due_date)` is indexed for the
+not-done case, and `features/board-canvas/dueDate.ts` already buckets a date.
 
-- Every table (Phase 1) plus `can_assign_to_card`, which already refuses anyone outside the team.
-- `BoardPage` passes `onOpenCard` to the canvas; it currently just announces a placeholder. Wire
-  the sheet to that.
-- `MoveCardDialog` already does move; copy/archive belong next to it.
-- The `board-backgrounds` bucket shows the pattern for the attachments bucket: private, object
-  named `<parent id>/<random>`, policies reading the first path segment.
+⚠️ Two traps waiting:
 
-Watch out for:
-
-- `assign_card` should write the assignment, the activity entry **and** the notification in one
-  transaction, the way `add_team_member` does.
-- Adding a row to the card front (a description marker, a checklist badge) changes its height, so
-  update `cardHeight` in `features/board-canvas/layout.ts` at the same time, or the drop index
-  will drift from what is drawn.
+- **RLS is not a row filter for "mine".** `card_assignees` returns every assignee of a card you
+  can see, so the query must filter on `user_id` itself. Pinned by a test in
+  `tests/rls/cards.test.ts`.
+- **Cards in an archived list are still `archived = false`.** They vanish from the board because
+  the canvas only lays out cards whose list is active, but a naive My Tasks query would show them
+  as live work. Join through `lists` and exclude archived ones.
 
 ---
 

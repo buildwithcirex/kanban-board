@@ -9,6 +9,7 @@ import { useSetPageTitle } from '@/app/pageTitle'
 import { AddCardDialog } from '@/features/board-canvas/AddCardDialog'
 import { BoardCanvas, type BoardFilter } from '@/features/board-canvas/BoardCanvas'
 import { MoveCardDialog } from '@/features/board-canvas/MoveCardDialog'
+import { CardDetailSheet } from '@/features/card-detail/CardDetailSheet'
 import { useBoardCards, useCreateCard, useMoveCard } from '@/features/board-canvas/useCards'
 import { useAuth } from '@/features/auth/useAuth'
 import { useMyRole, useTeamMembers } from '@/features/teams/useTeams'
@@ -21,7 +22,11 @@ import { useBoard, useBoardBackground } from './useBoards'
 import { useBoardLists, useCreateList, useUpdateList } from './useLists'
 
 export function BoardPage() {
-  const { teamId, boardId } = useParams<{ teamId: string; boardId: string }>()
+  const { teamId, boardId, cardId } = useParams<{
+    teamId: string
+    boardId: string
+    cardId?: string
+  }>()
   const navigate = useNavigate()
   const { user } = useAuth()
   const board = useBoard(boardId)
@@ -254,7 +259,7 @@ export function BoardPage() {
                 updateList.mutate({ listId, patch: { archived } })
               }
               onAddCard={setAddingToList}
-              onOpenCard={() => setAnnouncement('Card details arrive in the next phase')}
+              onOpenCard={(openId) => void navigate(`/t/${teamId}/b/${boardId}/c/${openId}`)}
               onRequestMove={setMovingCard}
             />
           )}
@@ -316,6 +321,20 @@ export function BoardPage() {
             position: positionAtIndex(others, index),
           })
           setMovingCard(null)
+        }}
+      />
+
+      <CardDetailSheet
+        cardId={cardId ?? null}
+        boardId={board.data.id}
+        lists={lists.data ?? []}
+        members={members.data ?? []}
+        myUserId={user?.id ?? null}
+        editable={editable}
+        onClose={() => void navigate(`/t/${teamId}/b/${boardId}`)}
+        onRequestMove={(id) => {
+          void navigate(`/t/${teamId}/b/${boardId}`)
+          setMovingCard(id)
         }}
       />
 

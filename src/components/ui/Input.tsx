@@ -6,9 +6,20 @@ type InputProps = ComponentProps<'input'> & {
   hint?: string
   error?: string
   hideLabel?: boolean
+  /** Sizing for the field *and* its label. `className` styles the input itself. */
+  wrapperClassName?: string
 }
 
-export function Input({ label, hint, error, hideLabel, id, className, ...props }: InputProps) {
+export function Input({
+  label,
+  hint,
+  error,
+  hideLabel,
+  id,
+  className,
+  wrapperClassName,
+  ...props
+}: InputProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId
   const hintId = hint ? `${inputId}-hint` : undefined
@@ -16,7 +27,7 @@ export function Input({ label, hint, error, hideLabel, id, className, ...props }
   const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn('flex flex-col gap-1.5', wrapperClassName)}>
       <label
         htmlFor={inputId}
         className={cn('text-sm font-medium text-fg', hideLabel && 'sr-only')}
