@@ -164,6 +164,7 @@ function Canvas(props: BoardCanvasProps) {
         isMine,
         dimmed,
         draggable,
+        freshCardIds.has(card.id),
         card.updated_at,
         card.assigneeIds.join(','),
         card.labels.map((label) => label.id).join(','),
@@ -185,6 +186,7 @@ function Canvas(props: BoardCanvasProps) {
           isMine,
           dimmed,
           isDragging,
+          isNew: freshCardIds.has(card.id),
           editable,
           onOpen: onOpenCard,
           onMove: onRequestMove,
@@ -193,11 +195,7 @@ function Canvas(props: BoardCanvasProps) {
         selectable: false,
         // Everything except the card under the pointer slides to its new slot; that transition
         // is the whole animation (see index.css).
-        className: isDragging
-          ? 'board-card-dragging'
-          : freshCardIds.has(card.id)
-            ? 'board-card board-card-new'
-            : 'board-card',
+        className: isDragging ? 'board-card-dragging' : 'board-card',
         zIndex: isDragging ? 1000 : 1,
       }
       cache.set(card.id, { key, node })

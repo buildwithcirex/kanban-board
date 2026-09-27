@@ -1,10 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useMatches } from 'react-router'
-import { LogIn, Moon, Sun, TriangleAlert } from 'lucide-react'
+import { Bell, LogIn, Moon, Sun, TriangleAlert } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
 import { Spinner } from '@/components/ui/Spinner'
 import { useAuth } from '@/features/auth/useAuth'
+import { useNotificationsRealtime, useUnreadCount } from '@/features/notifications/useNotifications'
 import { TeamNav } from '@/features/teams/TeamNav'
 import { cn } from '@/lib/cn'
 import { env } from '@/lib/env'
@@ -48,6 +49,40 @@ function ThemeToggle() {
       icon={isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
       onClick={() => setThemePreference(isDark ? 'light' : 'dark')}
     />
+  )
+}
+
+/**
+ * The unread badge.
+ *
+ * It lives in the shell rather than on the Notifications page so it is visible wherever you are,
+ * which is the whole point of a bell.
+ */
+function NotificationBell() {
+  const unread = useUnreadCount()
+  const count = unread.data ?? 0
+
+  return (
+    <NavLink
+      to="/notifications"
+      aria-label={count > 0 ? `Notifications, ${count} unread` : 'Notifications'}
+      className={({ isActive }) =>
+        cn(
+          'press relative flex size-10 items-center justify-center rounded-md pointer-coarse:size-11',
+          isActive ? 'text-accent' : 'text-fg-muted hover:bg-surface-sunken hover:text-fg',
+        )
+      }
+    >
+      <Bell className="size-5" aria-hidden />
+      {count > 0 && (
+        <span
+          aria-hidden
+          className="animate-rise absolute top-1 right-1 min-w-4 rounded-full bg-danger px-1 text-[0.625rem] leading-4 font-semibold text-white"
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </NavLink>
   )
 }
 
@@ -115,7 +150,12 @@ function AuthGate({ isPublic, children }: { isPublic: boolean; children: ReactNo
 }
 
 export function AppShell() {
+  const { status } = useAuth()
   const handle = useRouteHandle()
+
+  // One subscription for the whole app, so the bell updates on any page.
+  useNotificationsRealtime()
+
   const { pathname } = useLocation()
   const [override, setOverride] = useState<{ path: string; title: string } | null>(null)
 
@@ -176,7 +216,8 @@ export function AppShell() {
             </span>
             <h1 className="truncate text-base font-semibold max-md:sr-only">{title}</h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
+            {status === 'signed-in' && <NotificationBell />}
             {DevUserSwitcher && (
               <Suspense fallback={null}>
                 <DevUserSwitcher />

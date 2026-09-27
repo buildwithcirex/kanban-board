@@ -22,5 +22,7 @@ export const queryKeys = {
   teamWorkload: (teamId: string) => ['teams', teamId, 'workload'] as const,
   boardLabels: (boardId: string) => ['boards', boardId, 'labels'] as const,
   boardBackground: (path: string) => ['background', path] as const,
+  notifications: (unreadOnly: boolean) => ['notifications', { unreadOnly }] as const,
+  unreadCount: ['notifications', 'unread-count'] as const,
   supabaseHealth: ['supabase-health'] as const,
 } as const

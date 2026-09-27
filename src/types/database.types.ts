@@ -1073,6 +1073,7 @@ export type Database = {
       is_team_admin: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
       is_team_owner: { Args: { p_team_id: string }; Returns: boolean }
+      mark_notifications_read: { Args: { p_ids?: number[] }; Returns: number }
       move_card: {
         Args: { p_card_id: string; p_list_id: string; p_position: string }
         Returns: {

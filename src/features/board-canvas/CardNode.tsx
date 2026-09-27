@@ -16,6 +16,8 @@ export type CardNodeData = {
   /** Filtered out rather than hidden, so the board keeps its shape. */
   dimmed: boolean
   isDragging: boolean
+  /** Appeared since the last render: settles in instead of popping into place. */
+  isNew: boolean
   editable: boolean
   onOpen: (cardId: string) => void
   onMove: (cardId: string) => void
@@ -31,7 +33,7 @@ export type CardNodeType = Node<CardNodeData, 'card'>
  * 10ms with it.
  */
 function CardNodeImpl({ data }: NodeProps<CardNodeType>) {
-  const { card, members, isMine, dimmed, isDragging, editable } = data
+  const { card, members, isMine, dimmed, isDragging, isNew, editable } = data
   const due = dueDateLabel(card.due_date, card.due_complete)
 
   // The card is drawn at exactly the height the layout predicted for it. Letting the content
@@ -52,6 +54,7 @@ function CardNodeImpl({ data }: NodeProps<CardNodeType>) {
         'transition-[transform,box-shadow,opacity] duration-150 ease-out',
         isMine ? 'border-accent ring-1 ring-accent' : 'border-border',
         isDragging && 'scale-[1.03] rotate-[1.5deg] cursor-grabbing shadow-2xl',
+        isNew && !isDragging && 'card-enter',
         dimmed && 'opacity-35',
         card.archived && 'border-dashed',
       )}

@@ -199,7 +199,7 @@ describe('BoardPage', () => {
     await screen.findByTestId('board-canvas')
 
     expect(screen.getByTestId('board-canvas')).toHaveAttribute('data-mine-only', 'false')
-    await userEvent.click(screen.getByRole('button', { name: 'My cards only' }))
+    await userEvent.click(screen.getByRole('button', { name: 'My cards' }))
     expect(screen.getByTestId('board-canvas')).toHaveAttribute('data-mine-only', 'true')
   })
 
@@ -209,7 +209,7 @@ describe('BoardPage', () => {
 
     expect(await screen.findByText(/This board is archived/)).toBeInTheDocument()
     expect(screen.getByTestId('board-canvas')).toHaveAttribute('data-editable', 'false')
-    expect(screen.queryByRole('button', { name: '+ Add a list' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add a list' })).not.toBeInTheDocument()
   })
 
   it('adds a list at the end of the board', async () => {
@@ -218,8 +218,8 @@ describe('BoardPage', () => {
     renderApp(path)
     await screen.findByTestId('board-canvas')
 
-    await userEvent.click(screen.getByRole('button', { name: '+ Add a list' }))
-    await userEvent.type(screen.getByLabelText('List title'), 'In review')
+    await userEvent.click(screen.getByRole('button', { name: 'Add a list' }))
+    await userEvent.type(await screen.findByLabelText('List title'), 'In review')
     await userEvent.click(screen.getByRole('button', { name: 'Add list' }))
 
     await waitFor(() => expect(listsApi.createList).toHaveBeenCalled())
@@ -235,7 +235,7 @@ describe('BoardPage', () => {
       renderApp(path)
       await screen.findByTestId('board-canvas')
 
-      await userEvent.click(screen.getByRole('button', { name: 'Archived lists' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Archived' }))
 
       expect(await screen.findByRole('button', { name: 'Restore Old list' })).toBeInTheDocument()
       expect(screen.queryByTestId('board-canvas')).not.toBeInTheDocument()

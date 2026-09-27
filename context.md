@@ -7,7 +7,7 @@ happens, so a fresh session does not have to reverse-engineer the repo.
   reference: where behaviour is unspecified, do what Trello does.
 - **The plan:** [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) — architecture, domain
   model and the 12 phases. It is the contract for technology choices; do not deviate from it.
-- **Last updated:** 2026-09-27 — Phase 6 done and verified against the live dev project.
+- **Last updated:** 2026-09-27 — Phase 7 done and verified against the live dev project.
 
 ---
 
@@ -244,6 +244,19 @@ src/
 - **My Tasks filters archived parents in JavaScript**, because PostgREST cannot filter on the
   parent of an embedded row. A card in an archived list keeps `archived = false`, so without that
   filter it would show as live work even though the board does not draw it.
+- **Realtime subscribes per board and per user**, and both handlers only _invalidate_. A payload
+  is a raw table row, not the shape the board renders (a card carries its assignees and labels),
+  so applying it directly would mean two mappings of one thing. Realtime applies the same RLS as
+  the queries, so a subscriber only hears about rows they could already read.
+  ⚠️ Both channels are removed on cleanup. A channel left open keeps a socket alive and keeps
+  refetching for an account or a board that is no longer on screen.
+- ⚠️ **A CSS animation on `transform` overrides ReactFlow's inline positioning.** With
+  `fill-mode: both` the node holds `transform: none` for good and every animated card stacks at
+  the viewport origin. Entry animations go on a card's _inner_ element (`.card-enter`), never on
+  the node wrapper. Transitions are fine — only animations override.
+- ⚠️ **Component tests run with Supabase deliberately unconfigured** (`vitest.config.ts` blanks
+  the env). Before that, they opened real websockets and made real network calls against the dev
+  project. Anything that slips past a mock now fails loudly and offline.
 - **Motion lives in `src/styles/index.css`**, not in components: two easing curves
   (`--ease-glide`, `--ease-out-soft`) and three durations, plus `.animate-rise`, `.stagger`,
   `.press` and the board's own card transitions. Everything animates transform and opacity only,
@@ -315,27 +328,21 @@ test if wanted (costs a ~30 MB dev dependency).
 
 ---
 
-## Next: Phase 7 — Realtime & in-app notifications
+## Next: Phase 8 — PWA + Android push
 
-Scope from the plan: Supabase Realtime channels per board, cache updates from those events, a
-notification bell and inbox on the `notifications` rows, read/unread, and an activity feed. Done
-when two browsers signed in as different users see each other's changes live.
+Scope from the plan: manifest and icons, a custom service worker (`injectManifest`, needed for
+`push` and `notificationclick`), an offline read cache, update and install prompts, VAPID keys,
+`push_subscriptions`, the `send-push` Edge Function plus its database webhook, pg_cron reminders,
+and notification settings. Done when a card assigned to you raises a system notification on a real
+Android phone with the app closed, and tapping it opens the card.
 
-Already in place:
+⚠️ The plan says to **check first that Web Push works in the Deno edge runtime** (`npm:web-push`,
+or a Deno-native library) before building on it.
 
-- Every RPC since Phase 2 writes `notifications` and `activity` rows already, so the inbox has
-  real data to show the moment it is built — nothing else needs to change server-side.
-- `notifications` has `select` and `update` grants for the owner only (marking read), and no
-  insert grant at all, so a client can never forge one.
-- `queryKeys` is the single place to invalidate from when a Realtime event arrives.
+Already in place: `push_subscriptions` and `notification_prefs` with own-rows-only policies, every
+notification type already being written, and the inbox that the pushes will mirror.
 
-Still needed:
-
-- Tables must be added to the `supabase_realtime` publication; that was deliberately left to this
-  phase.
-- The bell belongs in `AppShell`; "Inbox" is already the mobile tab label for `/notifications`.
-- ⚠️ Realtime respects RLS, but a board channel is per board — take care that leaving a team or a
-  private board unsubscribes, or a stale channel keeps pushing rows the user can no longer read.
+Needs a real device and HTTPS, so the deployed preview URL is the test target, not localhost.
 
 ---
 

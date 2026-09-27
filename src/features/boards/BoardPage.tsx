@@ -1,23 +1,25 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { Archive, Lock, Settings2, SquareKanban } from 'lucide-react'
+import { Archive, Lock, Plus, Settings2, SquareKanban } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Select } from '@/components/ui/Select'
 import { Spinner } from '@/components/ui/Spinner'
 import { useSetPageTitle } from '@/app/pageTitle'
 import { AddCardDialog } from '@/features/board-canvas/AddCardDialog'
+import { AddListDialog } from '@/features/board-canvas/AddListDialog'
 import { BoardCanvas, type BoardFilter } from '@/features/board-canvas/BoardCanvas'
 import { MoveCardDialog } from '@/features/board-canvas/MoveCardDialog'
 import { CardDetailSheet } from '@/features/card-detail/CardDetailSheet'
 import { useBoardCards, useCreateCard, useMoveCard } from '@/features/board-canvas/useCards'
+import { useBoardRealtime } from '@/features/board-canvas/useBoardRealtime'
 import { useAuth } from '@/features/auth/useAuth'
 import { useMyRole, useTeamMembers } from '@/features/teams/useTeams'
 import { errorMessage } from '@/lib/api/errors'
 import { cn } from '@/lib/cn'
 import { positionAtEnd, positionAtIndex, sortByPosition } from '@/lib/ordering'
 import { BoardSettingsDialog } from './BoardSettingsDialog'
-import { AddListForm, ListColumn } from './ListColumn'
+import { ListColumn } from './ListColumn'
 import { useBoard, useBoardBackground } from './useBoards'
 import { useBoardLists, useCreateList, useUpdateList } from './useLists'
 
@@ -37,6 +39,7 @@ export function BoardPage() {
   const [filter, setFilter] = useState<BoardFilter>({ mineOnly: false, memberId: null })
   const [addingToList, setAddingToList] = useState<string | null>(null)
   const [movingCard, setMovingCard] = useState<string | null>(null)
+  const [addingList, setAddingList] = useState(false)
   const [announcement, setAnnouncement] = useState('')
 
   const lists = useBoardLists(boardId, showArchived)
@@ -48,6 +51,8 @@ export function BoardPage() {
   const { color, imageUrl } = useBoardBackground(board.data?.background ?? null)
 
   useSetPageTitle(board.data?.title)
+  // Teammates' changes arrive without a refresh.
+  useBoardRealtime(boardId)
 
   const listById = useMemo(
     () => new Map((lists.data ?? []).map((list) => [list.id, list])),
@@ -153,52 +158,68 @@ export function BoardPage() {
           </Link>
         </div>
 
-        {/* Full width below `sm` so the buttons wrap under the title instead of crushing it. */}
-        <div className="flex shrink-0 flex-wrap items-center gap-2 max-sm:w-full max-sm:justify-end">
+        {/* Settings stays on the title row; the rest becomes a chip rail below, so a phone
+            spends one line on tools instead of four. */}
+        <Button
+          size="sm"
+          className="shrink-0"
+          icon={<Settings2 className="size-4" />}
+          onClick={() => setSettingsOpen(true)}
+        >
+          <span className="max-sm:sr-only">Settings</span>
+        </Button>
+
+        <div className="-mx-4 flex w-[calc(100%+2rem)] gap-2 overflow-x-auto px-4 pb-0.5 md:mx-0 md:w-full md:px-0">
           {!showArchived && (
             <>
               <Button
                 size="sm"
+                className={cn('shrink-0', filter.mineOnly && 'border-accent text-accent')}
                 aria-pressed={filter.mineOnly}
-                className={cn(filter.mineOnly && 'border-accent text-accent')}
                 onClick={() =>
                   setFilter((current) => ({ ...current, mineOnly: !current.mineOnly }))
                 }
               >
-                My cards only
+                My cards
               </Button>
-              <Select
-                label="Highlight a teammate's cards"
-                hideLabel
-                value={filter.memberId ?? ''}
-                className="h-8 w-40 text-xs"
-                onChange={(event) =>
-                  setFilter((current) => ({ ...current, memberId: event.target.value || null }))
-                }
-              >
-                <option value="">Everyone</option>
-                {(members.data ?? []).map((member) => (
-                  <option key={member.userId} value={member.userId}>
-                    {member.name}
-                  </option>
-                ))}
-              </Select>
+              <div className="w-36 shrink-0">
+                <Select
+                  label="Highlight a teammate's cards"
+                  hideLabel
+                  value={filter.memberId ?? ''}
+                  className="h-8 text-xs"
+                  onChange={(event) =>
+                    setFilter((current) => ({ ...current, memberId: event.target.value || null }))
+                  }
+                >
+                  <option value="">Everyone</option>
+                  {(members.data ?? []).map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </>
           )}
           <Button
             size="sm"
+            className="shrink-0"
             onClick={() => setShowArchived((value) => !value)}
             aria-pressed={showArchived}
           >
-            {showArchived ? 'Show the board' : 'Archived lists'}
+            {showArchived ? 'Back to the board' : 'Archived'}
           </Button>
-          <Button
-            size="sm"
-            icon={<Settings2 className="size-4" />}
-            onClick={() => setSettingsOpen(true)}
-          >
-            Settings
-          </Button>
+          {editable && !showArchived && lists.data && (
+            <Button
+              size="sm"
+              className="shrink-0"
+              onClick={() => setAddingList(true)}
+              icon={<Plus className="size-4" />}
+            >
+              Add a list
+            </Button>
+          )}
         </div>
       </header>
 
@@ -260,21 +281,29 @@ export function BoardPage() {
               onRequestMove={setMovingCard}
             />
           )}
-
-          {editable && lists.data && (
-            <div className="pointer-events-none absolute top-2 right-2 w-56">
-              <div className="pointer-events-auto">
-                <AddListForm
-                  pending={createList.isPending}
-                  onAdd={(title) =>
-                    createList.mutate({ title, position: positionAtEnd(lists.data) })
-                  }
-                />
-              </div>
-            </div>
-          )}
         </div>
       )}
+
+      <AddListDialog
+        open={addingList}
+        pending={createList.isPending}
+        error={createList.isError ? createList.error : null}
+        onClose={() => {
+          setAddingList(false)
+          createList.reset()
+        }}
+        onAdd={(title) =>
+          createList.mutate(
+            { title, position: positionAtEnd(lists.data ?? []) },
+            {
+              onSuccess: () => {
+                setAddingList(false)
+                setAnnouncement(`${title.trim()} list added`)
+              },
+            },
+          )
+        }
+      />
 
       <AddCardDialog
         list={addingToList ? (listById.get(addingToList) ?? null) : null}

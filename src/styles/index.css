@@ -188,9 +188,24 @@
     will-change: transform;
   }
 
-  /* A brand new card settles in rather than appearing. */
-  .board-card-new {
-    animation: rise-in var(--dur-slow) var(--ease-out-soft) both;
+  /* A brand new card settles in rather than appearing.
+     ⚠️ This goes on the card's *inner* element, never on the node wrapper: ReactFlow positions
+     nodes with an inline `transform`, and a CSS animation on `transform` overrides it. With
+     `fill-mode: both` the node would hold `transform: none` forever and every animated card would
+     stack at the viewport origin. Only opacity and an inner offset are safe here. */
+  .card-enter {
+    animation: card-in var(--dur-slow) var(--ease-out-soft) both;
+  }
+
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   .board-card-dragging {
@@ -232,7 +247,7 @@
 
     .animate-rise,
     .stagger > *,
-    .board-card-new,
+    .card-enter,
     dialog[open],
     dialog[open]::backdrop {
       animation: none;
